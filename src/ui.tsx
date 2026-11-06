@@ -13,6 +13,65 @@ export function Logo({ compact = false }: { compact?: boolean }) {
     </span>
   );
 }
+export function Drawer({
+  title,
+  children,
+  close,
+}: {
+  title: string;
+  children: ReactNode;
+  close: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    const previous = document.activeElement;
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      if (previous instanceof HTMLElement && previous.isConnected) {
+        previous.focus({ preventScroll: true });
+      }
+    };
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="drawer"
+      aria-label={title}
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+      onClick={(event) => {
+        if (event.target === ref.current) {
+          const bounds = ref.current.getBoundingClientRect();
+          if (
+            event.clientX < bounds.left ||
+            event.clientX > bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY > bounds.bottom
+          )
+            close();
+        }
+      }}
+    >
+      <div className="drawer-frame">
+        <header className="drawer-header">
+          <h2>{title}</h2>
+          <button
+            className="icon-button"
+            aria-label="Fechar painel"
+            onClick={close}
+          >
+            <X size={18} />
+          </button>
+        </header>
+        {children}
+      </div>
+    </dialog>
+  );
+}
 export function Modal({
   title,
   children,
@@ -26,7 +85,15 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    ref.current?.showModal();
+    const dialog = ref.current;
+    const previous = document.activeElement;
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      if (previous instanceof HTMLElement && previous.isConnected) {
+        previous.focus({ preventScroll: true });
+      }
+    };
   }, []);
   return (
     <dialog
@@ -69,6 +136,11 @@ export function Help({ close }: { close: () => void }) {
   return (
     <Modal title="Seu espaço de escrita" close={close}>
       <p>Escreva um bloco por vez. O editor cuida da formatação.</p>
+      <p>
+        Clique em Elemental Write, no canto superior esquerdo, para abrir seus
+        projetos, roteiros e notas. O botão Cenas abre o índice do roteiro.
+        Importação, tema e configurações da página ficam no menu de três pontos.
+      </p>
       <dl className="shortcuts">
         <dt>Enter</dt>
         <dd>Próximo elemento pelo contexto. Depois de uma fala, personagem.</dd>

@@ -54,6 +54,12 @@ Um push para `main` aciona o deploy quando a integração Git do projeto está h
 - Importação Fountain/TXT, FDX, DOCX e PDF com texto selecionável, sempre com prévia e revisão dos tipos antes de criar um novo roteiro. Restauração JSON cria um novo projeto.
 - Interface responsiva, temas claro e escuro, diálogos com foco contido e suporte ao teclado.
 
+### Interface Foco essencial
+
+A área de escrita usa tons de carvão e papel, sem barras laterais fixas. Clique na marca **Elemental Write** no canto superior esquerdo para abrir projetos, roteiros, notas e perfil. **Cenas**, no canto inferior esquerdo, abre o índice e a lista de personagens. Os painéis podem ser fechados com Escape e devolvem o foco ao controle que os abriu.
+
+A barra flutuante reúne tipos de bloco, formatação, histórico, busca, salvamento, zoom e modo foco. O menu de três pontos ao lado de **Exportar** reúne importação, configurações de página, tema e ajuda. No celular, a barra usa duas linhas e a escrita se adapta à largura da tela; PDF e DOCX continuam usando as medidas reais da página. A aparência do editor não altera seus textos nem a estrutura dos documentos salvos.
+
 ### Teclado
 
 | Bloco preenchido | Enter cria |

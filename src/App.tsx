@@ -25,7 +25,6 @@ import {
   HardDrive,
   PenLine,
   Clapperboard,
-  BookOpen,
   HelpCircle,
   Trash2,
   Copy,
@@ -37,13 +36,13 @@ import {
   Bold,
   Italic,
   Underline,
-  PanelLeftClose,
-  PanelLeft,
   Save,
   Focus,
   ArrowDown,
+  X,
+  Minus,
 } from "lucide-react";
-import { Logo, Modal, Field, Help } from "./ui";
+import { Logo, Modal, Drawer, Field, Help } from "./ui";
 import { repository } from "./data/repository";
 import { useDocument } from "./data/useDocument";
 import {
@@ -60,7 +59,7 @@ import {
   type Kind,
 } from "./model";
 import { ScreenplayEditor, type EditorHandle } from "./editor/Editor";
-import { geometry, layout } from "./editor/layout";
+import { geometry } from "./editor/layout";
 import { backup, parseBackup, type Backup } from "./io/backup";
 import {
   download,
@@ -113,7 +112,7 @@ export default function App() {
     [query, setQuery] = useState(""),
     [preview, setPreview] = useState<ImportPreview | null>(null),
     [restore, setRestore] = useState<Backup | null>(null),
-    [mobile, setMobile] = useState(false);
+    [navigationOpen, setNavigationOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const beforeNavigate = useRef<() => Promise<boolean>>(async () => true);
   const refresh = async (p: Profile) =>
@@ -143,6 +142,31 @@ export default function App() {
     const t = setTimeout(() => setToast(""), 10000);
     return () => clearTimeout(t);
   }, [toast]);
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || event.target.closest("details"))
+        return;
+      document
+        .querySelectorAll("details[open]")
+        .forEach((menu) => menu.removeAttribute("open"));
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const menus =
+        document.querySelectorAll<HTMLDetailsElement>("details[open]");
+      if (menus.length) {
+        event.preventDefault();
+        menus.forEach((menu) => menu.removeAttribute("open"));
+        menus[0].querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
   const safe = async (action: () => Promise<void>) => {
     try {
       await action();
@@ -166,7 +190,7 @@ export default function App() {
       setDocs(all);
       setProject(p);
       setActive(all.find((d) => d.kind === "script") || all[0] || null);
-      setMobile(false);
+      setNavigationOpen(false);
     });
   };
   const selectDoc = async (d: Manuscript) =>
@@ -176,7 +200,7 @@ export default function App() {
       if (fresh) {
         setDocs(all);
         setActive(fresh);
-        setMobile(false);
+        setNavigationOpen(false);
       } else setToast("O documento foi removido em outra aba.");
     });
   const home = () =>
@@ -184,6 +208,7 @@ export default function App() {
       navigate(async () => {
         setActive(null);
         setProject(null);
+        setNavigationOpen(false);
         beforeNavigate.current = async () => true;
         if (profile) await refresh(profile);
       }),
@@ -245,6 +270,7 @@ export default function App() {
         await repository.createDocument(d);
         setDocs(await repository.documents(project!.id));
         setActive(d);
+        setNavigationOpen(false);
       },
     });
   const renameDoc = (d: Manuscript) =>
@@ -316,6 +342,7 @@ export default function App() {
     safe(() =>
       navigate(async () => {
         setProfile(null);
+        setNavigationOpen(false);
         setProject(null);
         setActive(null);
         localStorage.removeItem("ew.profile");
@@ -563,62 +590,61 @@ export default function App() {
         />
       ) : (
         <div className="app-shell">
-          <aside className={"sidebar " + (mobile ? "mobile-open" : "")}>
-            {sidebar}
-          </aside>
-          {mobile && (
-            <button
-              className="mobile-overlay"
-              aria-label="Fechar navegação"
-              onClick={() => setMobile(false)}
-            />
+          {navigationOpen && (
+            <Drawer
+              title="Seus documentos"
+              close={() => setNavigationOpen(false)}
+            >
+              <nav className="sidebar" aria-label="Projetos e documentos">
+                {sidebar}
+              </nav>
+            </Drawer>
           )}
           <main className="main">
-            <header className="topbar">
-              <div className="breadcrumbs">
+            {!active && (
+              <header className="topbar">
                 <button
-                  className="icon-button mobile-toggle"
+                  className="brand-button"
                   aria-label="Abrir navegação"
-                  onClick={() => setMobile(!mobile)}
+                  title="Projetos, roteiros e notas"
+                  onClick={() => setNavigationOpen(true)}
                 >
-                  <PanelLeft size={19} />
+                  <Logo />
+                  <ChevronDown size={13} />
                 </button>
-                <span className="breadcrumb-icon">
-                  <BookOpen size={17} />
+                <span className="topbar-title">
+                  {project?.title || "Seu espaço de escrita"}
                 </span>
-                <button onClick={home}>Meu espaço</button>
-                {project && (
-                  <>
-                    <ChevronRight size={14} />
-                    <span>{project.title}</span>
-                  </>
-                )}
-              </div>
-              <div className="top-actions">
-                <span className="local-status">
-                  <span /> Ambiente local
-                </span>
-                <button
-                  className="icon-button"
-                  aria-label={
-                    profile.theme === "dark"
-                      ? "Ativar tema claro"
-                      : "Ativar tema escuro"
-                  }
-                  title="Alternar tema"
-                  onClick={theme}
-                >
-                  {profile.theme === "dark" ? (
-                    <Sun size={18} />
-                  ) : (
-                    <Moon size={18} />
-                  )}
-                </button>
-                <span className="avatar small">
-                  {profile.name.slice(0, 1).toUpperCase()}
-                </span>
-              </div>
-            </header>
+                <div className="top-actions">
+                  <span className="local-pill">
+                    <span /> Modo local
+                  </span>
+                  <button
+                    className="icon-button"
+                    aria-label={
+                      profile.theme === "dark"
+                        ? "Ativar tema claro"
+                        : "Ativar tema escuro"
+                    }
+                    title="Alternar tema"
+                    onClick={theme}
+                  >
+                    {profile.theme === "dark" ? (
+                      <Sun size={18} />
+                    ) : (
+                      <Moon size={18} />
+                    )}
+                  </button>
+                  <button
+                    className="avatar small"
+                    aria-label="Abrir perfil e documentos"
+                    onClick={() => setNavigationOpen(true)}
+                  >
+                    {profile.name.slice(0, 1).toUpperCase()}
+                  </button>
+                </div>
+              </header>
+            )}
             {!project ? (
               <div className="dashboard">
                 <div className="dashboard-intro">
@@ -754,14 +780,15 @@ export default function App() {
                 key={active.id}
                 initial={active}
                 project={project}
-                docs={docs}
-                onSelect={(d) => void safe(() => selectDoc(d))}
                 onSaved={saveList}
                 beforeNavigate={beforeNavigate}
                 onError={setToast}
                 importFile={() => fileRef.current?.click()}
                 projectBackup={() => void projectBackup()}
                 onHelp={() => setHelp(true)}
+                onNavigate={() => setNavigationOpen(true)}
+                theme={profile.theme}
+                onTheme={theme}
               />
             ) : (
               <div className="empty-workspace">
@@ -1131,25 +1158,27 @@ function Confirm({
 function Workspace({
   initial,
   project,
-  docs,
-  onSelect,
   onSaved,
   beforeNavigate,
   onError,
   importFile,
   projectBackup,
   onHelp,
+  onNavigate,
+  theme,
+  onTheme,
 }: {
   initial: Manuscript;
   project: Project;
-  docs: Manuscript[];
-  onSelect: (d: Manuscript) => void;
   onSaved: (d: Manuscript) => void;
   beforeNavigate: React.MutableRefObject<() => Promise<boolean>>;
   onError: (m: string) => void;
   importFile: () => void;
   projectBackup: () => void;
   onHelp: () => void;
+  onNavigate: () => void;
+  theme: Profile["theme"];
+  onTheme: () => void;
 }) {
   const { value, change, flush, status, error, latest } = useDocument(
     initial,
@@ -1158,12 +1187,12 @@ function Workspace({
   const editor = useRef<EditorHandle>(null);
   const [kind, setKind] = useState<Kind>(initial.doc.content[0].attrs.kind),
     [pages, setPages] = useState(1),
-    [zoom, setZoom] = useState(85),
+    [zoom, setZoom] = useState(125),
     [search, setSearch] = useState(false),
     [query, setQuery] = useState(""),
     [results, setResults] = useState(0),
     [settings, setSettings] = useState(false),
-    [outline, setOutline] = useState(true),
+    [outline, setOutline] = useState(false),
     [focus, setFocus] = useState(false),
     [exporting, setExporting] = useState("");
   const flushRef = useRef(flush);
@@ -1230,58 +1259,44 @@ function Workspace({
     .filter(Boolean).length;
   const g = geometry(value.paper);
   return (
-    <div className={"workspace " + (focus ? "focus-mode" : "")}>
-      <div className="document-tabs">
-        {docs.map((d) => (
-          <button
-            key={d.id}
-            className={d.id === value.id ? "selected" : ""}
-            onClick={() => onSelect(d)}
-          >
-            {d.kind === "script" ? (
-              <FileText size={14} />
-            ) : (
-              <StickyNote size={14} />
-            )}
-            <span>{d.title}</span>
-            {d.id === value.id && <span className="tab-dot" />}
-          </button>
-        ))}
-      </div>
-      <div className="document-heading">
-        <div>
-          <div className="eyebrow">
-            {value.kind === "script" ? "ROTEIRO" : "CADERNO DE IDEIAS"}
-            {project.demo && <span className="demo-badge">DEMONSTRAÇÃO</span>}
-          </div>
-          <h1>{value.title}</h1>
+    <div
+      className={"workspace " + (focus ? "focus-mode" : "")}
+      style={{ "--view-zoom": zoom / 100 } as React.CSSProperties}
+    >
+      <header className="workspace-header">
+        <button
+          className="brand-button"
+          aria-label="Abrir navegação"
+          title="Projetos, roteiros e notas"
+          onClick={onNavigate}
+        >
+          <Logo />
+          <ChevronDown size={13} />
+        </button>
+        <button
+          className="workspace-project"
+          title="Trocar roteiro ou abrir notas"
+          onClick={onNavigate}
+        >
+          {project.title}
+        </button>
+        <div className="document-actions">
           <div
             className={"save-state " + (error ? "error" : "")}
+            role="status"
+            aria-label={status}
             aria-live="polite"
+            title={`${status} · Salvamento automático a cada 5 minutos e após a digitação`}
           >
             {status === "Salvo neste navegador" ? (
-              <Check size={13} />
+              <Check size={16} />
             ) : status === "Salvando…" ? (
-              <LoaderCircle size={13} className="spin" />
+              <LoaderCircle size={16} className="spin" />
             ) : (
               <span className="unsaved-dot" />
             )}
-            {status}
+            <span>{status}</span>
           </div>
-        </div>
-        <div className="document-actions">
-          <button
-            className="icon-button"
-            aria-label="Configurar página e folha de rosto"
-            title="Página e folha de rosto"
-            onClick={() => setSettings(true)}
-          >
-            <Settings2 size={18} />
-          </button>
-          <button className="secondary" onClick={importFile}>
-            <Upload size={16} />
-            <span>Importar</span>
-          </button>
           <details className="menu export-menu">
             <summary className="primary">
               {exporting ? (
@@ -1324,8 +1339,51 @@ function Workspace({
               </button>
             </div>
           </details>
+          <details className="menu workspace-menu">
+            <summary
+              role="button"
+              aria-label="Mais opções"
+              title="Importar, página, tema e ajuda"
+            >
+              <MoreHorizontal size={21} />
+            </summary>
+            <div className="menu-pop">
+              <button
+                onClick={(e) => {
+                  e.currentTarget.closest("details")?.removeAttribute("open");
+                  importFile();
+                }}
+              >
+                <Upload size={15} />
+                Importar
+              </button>
+              <button
+                aria-label="Configurar página e folha de rosto"
+                onClick={(e) => {
+                  e.currentTarget.closest("details")?.removeAttribute("open");
+                  setSettings(true);
+                }}
+              >
+                <Settings2 size={15} />
+                Página e folha de rosto
+              </button>
+              <button onClick={onTheme}>
+                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}{" "}
+                {theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.currentTarget.closest("details")?.removeAttribute("open");
+                  onHelp();
+                }}
+              >
+                <HelpCircle size={15} />
+                Ajuda e atalhos
+              </button>
+            </div>
+          </details>
         </div>
-      </div>
+      </header>
       {error && (
         <div className="save-error" role="alert">
           {error} <button onClick={() => void flush()}>Tentar salvar</button>
@@ -1337,27 +1395,18 @@ function Workspace({
       <div className="editor-toolbar">
         {value.kind === "script" ? (
           <>
-            <button
-              className="icon-button"
-              aria-label="Mostrar cenas"
-              title="Navegação pelas cenas"
-              onClick={() => setOutline(!outline)}
-            >
-              {outline ? <PanelLeftClose size={18} /> : <PanelLeft size={18} />}
-            </button>
-            <span className="toolbar-divider" />
             <select
               aria-label="Tipo do bloco"
               value={kind}
+              title={labels[kind]}
               onChange={(e) => editor.current?.kind(e.target.value as Kind)}
             >
               {kinds.map((k) => (
                 <option key={k} value={k}>
-                  {labels[k]}
+                  {k === "scene" ? "Cena" : labels[k]}
                 </option>
               ))}
             </select>
-            <span className="key-hint">Tab</span>
             <span className="toolbar-divider" />
             {(
               [
@@ -1408,20 +1457,39 @@ function Workspace({
           </button>
           {value.kind === "script" && (
             <>
+              <button
+                className="icon-button zoom-step"
+                aria-label="Diminuir zoom"
+                disabled={zoom <= 60}
+                onClick={() => setZoom(Math.max(60, zoom - 10))}
+              >
+                <Minus size={15} />
+              </button>
               <select
                 aria-label="Zoom da página"
                 value={zoom}
                 onChange={(e) => setZoom(Number(e.target.value))}
               >
-                {[60, 70, 85, 100, 110, 125].map((z) => (
-                  <option key={z} value={z}>
-                    {z}%
-                  </option>
-                ))}
+                {[...new Set([60, 70, 85, 100, 110, 125, zoom])]
+                  .sort((a, b) => a - b)
+                  .map((z) => (
+                    <option key={z} value={z}>
+                      {z}%
+                    </option>
+                  ))}
               </select>
+              <button
+                className="icon-button zoom-step"
+                aria-label="Aumentar zoom"
+                disabled={zoom >= 150}
+                onClick={() => setZoom(Math.min(150, zoom + 10))}
+              >
+                <Plus size={15} />
+              </button>
               <button
                 className={"icon-button " + (focus ? "is-active" : "")}
                 aria-label="Alternar modo foco"
+                aria-pressed={focus}
                 title="Modo foco"
                 onClick={() => setFocus(!focus)}
               >
@@ -1454,52 +1522,70 @@ function Workspace({
           >
             <ArrowDown size={16} />
           </button>
+          <button
+            className="icon-button"
+            aria-label="Fechar busca"
+            onClick={() => {
+              setSearch(false);
+              editor.current?.search("");
+            }}
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
       <div className="writing-area">
-        {outline && value.kind === "script" && !focus && (
-          <aside className="outline">
-            <div className="section-label">
-              <span>CENAS</span>
-              <span className="count">
-                {scenes.length.toString().padStart(2, "0")}
-              </span>
-            </div>
-            <div className="outline-list">
-              {scenes.map((b, i) => (
-                <button key={i} onClick={() => editor.current?.scene(i)}>
-                  <span>{(i + 1).toString().padStart(2, "0")}</span>
-                  <div>
-                    <strong>{textOf(b) || "Nova cena"}</strong>
-                    <small>
-                      {/EXT\./i.test(textOf(b))
-                        ? "EXTERIOR"
-                        : /INT\./i.test(textOf(b))
-                          ? "INTERIOR"
-                          : "CENA"}
-                    </small>
-                  </div>
-                </button>
-              ))}
-              {!scenes.length && (
-                <p className="empty-small">
-                  Use um cabeçalho para começar uma cena.
-                </p>
-              )}
-            </div>
-            <div className="outline-bottom">
-              <small>PERSONAGENS</small>
-              {characters(value.doc).map((n) => (
-                <span key={n}>
-                  <span className="character-dot" />
-                  {n}
+        {outline && value.kind === "script" && (
+          <Drawer title="Cenas e personagens" close={() => setOutline(false)}>
+            <aside className="outline">
+              <div className="section-label">
+                <span>CENAS</span>
+                <span className="count">
+                  {scenes.length.toString().padStart(2, "0")}
                 </span>
-              ))}
-              {!characters(value.doc).length && (
-                <p className="empty-small">Os personagens aparecerão aqui.</p>
-              )}
-            </div>
-          </aside>
+              </div>
+              <div className="outline-list">
+                {scenes.map((b, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setOutline(false);
+                      requestAnimationFrame(() => editor.current?.scene(i));
+                    }}
+                  >
+                    <span>{(i + 1).toString().padStart(2, "0")}</span>
+                    <div>
+                      <strong>{textOf(b) || "Nova cena"}</strong>
+                      <small>
+                        {/EXT\./i.test(textOf(b))
+                          ? "EXTERIOR"
+                          : /INT\./i.test(textOf(b))
+                            ? "INTERIOR"
+                            : "CENA"}
+                      </small>
+                    </div>
+                  </button>
+                ))}
+                {!scenes.length && (
+                  <p className="empty-small">
+                    Use um cabeçalho para começar uma cena.
+                  </p>
+                )}
+              </div>
+              <div className="outline-bottom">
+                <small>PERSONAGENS</small>
+                {characters(value.doc).map((n) => (
+                  <span key={n}>
+                    <span className="character-dot" />
+                    {n}
+                  </span>
+                ))}
+                {!characters(value.doc).length && (
+                  <p className="empty-small">Os personagens aparecerão aqui.</p>
+                )}
+              </div>
+            </aside>
+          </Drawer>
         )}
         <div className="page-scroll">
           {value.kind === "script" ? (
@@ -1519,8 +1605,8 @@ function Workspace({
                 }}
               >
                 <div className="paper-running">
-                  <span>{value.title}</span>
-                  <span>1.</span>
+                  <h1>{value.title}</h1>
+                  <span>p. 1</span>
                 </div>
                 <ScreenplayEditor
                   ref={editor}
@@ -1555,12 +1641,23 @@ function Workspace({
         </div>
       </div>
       <footer className="editor-status">
-        <span>
-          <span className="status-dot" />
-          {value.kind === "script" ? "Roteiro" : "Nota"}
-          <i />
-          Português (Brasil)
-        </span>
+        <div className="footer-navigation">
+          {value.kind === "script" ? (
+            <button
+              className="reveal-button"
+              aria-expanded={outline}
+              onClick={() => setOutline(true)}
+            >
+              <Clapperboard size={17} />
+              <span>Cenas</span>
+            </button>
+          ) : (
+            <button className="reveal-button" onClick={onNavigate}>
+              <Folder size={17} />
+              <span>Documentos</span>
+            </button>
+          )}
+        </div>
         <div>
           <span>{words.toLocaleString("pt-BR")} palavras</span>
           {value.kind === "script" && (
@@ -1687,7 +1784,7 @@ function ImportModal({
             >
               {kinds.map((k) => (
                 <option key={k} value={k}>
-                  {labels[k]}
+                  {k === "scene" ? "Cena" : labels[k]}
                 </option>
               ))}
             </select>

@@ -20,6 +20,35 @@ const step = async (name, fn) => {
   await fn();
   console.log("PASS", name);
 };
+const openNavigation = async () => {
+  const drawer = page.getByRole("dialog", { name: "Seus documentos" });
+  if (!(await drawer.count()))
+    await page.getByRole("button", { name: "Abrir navegação" }).click();
+  await drawer.waitFor();
+  return drawer;
+};
+const selectDocument = async (name) => {
+  const drawer = await openNavigation();
+  await drawer.getByRole("button", { name, exact: true }).click();
+  await drawer.waitFor({ state: "hidden" });
+};
+const newDocument = async (name) => {
+  const drawer = await openNavigation();
+  await drawer.getByRole("button", { name, exact: true }).click();
+  await page.getByRole("dialog", { name, exact: true }).waitFor();
+};
+const toggleTheme = async (name) => {
+  await page.locator(".workspace-header").waitFor();
+  const button = page.getByRole("button", { name, exact: true });
+  const menu = page.getByRole("button", { name: "Mais opções" });
+  await menu.click();
+  await button.click();
+  await page.waitForFunction(
+    (theme) => document.documentElement.dataset.theme === theme,
+    name.includes("claro") ? "light" : "dark",
+  );
+  if (await page.locator(".workspace-menu[open]").count()) await menu.click();
+};
 await page.goto(process.env.BASE_URL || "http://localhost:5173");
 await page.screenshot({ path: "artifacts/login.png", fullPage: true });
 await step("Criar perfil local", async () => {
@@ -84,29 +113,64 @@ await step("Criar roteiro e escrever com blocos estruturados", async () => {
     .filter({ hasText: /^Salvo neste navegador$/ })
     .waitFor();
 });
+await step(
+  "Foco essencial: barra flutuante, painéis recolhíveis e teclado",
+  async () => {
+    assert.equal(await page.locator(".document-tabs").count(), 0);
+    assert.equal(await page.getByRole("dialog").count(), 0);
+    const toolbar = await page.locator(".editor-toolbar").boundingBox();
+    assert.ok(toolbar.y > 850, "A barra deve flutuar na parte inferior.");
+    await page.getByRole("button", { name: "Cenas", exact: true }).click();
+    const scenes = page.getByRole("dialog", { name: "Cenas e personagens" });
+    await scenes.waitFor();
+    await scenes.locator(".outline-list>button").first().click();
+    await scenes.waitFor({ state: "hidden" });
+    assert.equal(
+      await page.getByLabel("Tipo do bloco", { exact: true }).inputValue(),
+      "scene",
+    );
+    const drawer = await openNavigation();
+    await page.keyboard.press("Escape");
+    await drawer.waitFor({ state: "hidden" });
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Abrir navegação" })
+        .evaluate((el) => el === document.activeElement),
+      true,
+    );
+    await page.getByRole("button", { name: "Mais opções" }).click();
+    await page
+      .getByRole("button", { name: "Configurar página e folha de rosto" })
+      .click();
+    await page
+      .getByRole("dialog", { name: "Página e folha de rosto" })
+      .waitFor();
+    await page.getByRole("button", { name: "Fechar", exact: true }).click();
+    await page.getByRole("button", { name: "Buscar no roteiro" }).click();
+    await page.getByLabel("Texto para buscar").fill("lembra");
+    await page.getByRole("button", { name: "Próxima ocorrência" }).click();
+    assert.equal(await page.locator(".search-result").count(), 1);
+    await page.getByRole("button", { name: "Fechar busca" }).click();
+  },
+);
 await page.screenshot({ path: "artifacts/editor.png", fullPage: true });
 await step(
   "Segundo roteiro e nota; alternância sem misturar texto",
   async () => {
-    await page
-      .getByRole("button", { name: "Novo roteiro", exact: true })
-      .click();
+    await newDocument("Novo roteiro");
     await page.getByLabel("Título", { exact: true }).fill("Segundo tratamento");
     await page.getByRole("button", { name: "Salvar", exact: true }).click();
     await page.locator(".screenplay").click();
     await page.keyboard.type("EXT. PRAIA - NOITE");
     await page.keyboard.press("Enter");
     await page.keyboard.type("As ondas chegam.");
-    await page.getByRole("button", { name: "Nova nota", exact: true }).click();
+    await newDocument("Nova nota");
     await page
       .getByLabel("Título", { exact: true })
       .fill("Referências visuais");
     await page.getByRole("button", { name: "Salvar", exact: true }).click();
     await page.getByLabel("Corpo da nota").fill("Luz do farol. Memória e mar.");
-    await page
-      .getByRole("button", { name: "Primeiro tratamento", exact: true })
-      .first()
-      .click();
+    await selectDocument("Primeiro tratamento");
     assert.ok(
       (await page.locator(".screenplay").innerText()).includes(
         "Você ainda se lembra?",
@@ -131,26 +195,22 @@ await step("Recarregar e restaurar perfil, projeto e textos", async () => {
       "Então vamos continuar.",
     ),
   );
-  await page
-    .getByRole("button", { name: "Referências visuais", exact: true })
-    .first()
-    .click();
+  await selectDocument("Referências visuais");
   assert.equal(
     await page.getByLabel("Corpo da nota").inputValue(),
     "Luz do farol. Memória e mar.",
   );
 });
 await step("Tema persistido por perfil", async () => {
-  await page.getByRole("button", { name: "Ativar tema claro" }).click();
-  await page.getByRole("button", { name: "Ativar tema escuro" }).waitFor();
+  await toggleTheme("Ativar tema claro");
   await page.reload();
   await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
   assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
   await page.getByRole("button", { name: /O último farol Um roteiro/ }).click();
-  await page.getByRole("button", { name: "Ativar tema escuro" }).click();
+  await toggleTheme("Ativar tema escuro");
 });
 await step("Isolamento entre perfis", async () => {
-  await page.getByRole("button", { name: "Sair do perfil" }).click();
+  await selectDocument("Sair do perfil");
   await page.getByRole("button", { name: "Criar outro perfil" }).click();
   await page.getByLabel("Como podemos chamar você?").fill("Bruno");
   await page.getByLabel("E-mail do perfil").fill("bruno@example.com");
@@ -162,7 +222,7 @@ await step("Isolamento entre perfis", async () => {
       .count(),
     0,
   );
-  await page.getByRole("button", { name: "Sair do perfil" }).click();
+  await selectDocument("Sair do perfil");
   await page
     .getByRole("button", { name: /Ana Ribeiro ana@example.com/ })
     .click();
@@ -230,10 +290,7 @@ await step(
   },
 );
 await step("Downloads da interface e restauração por arquivo", async () => {
-  await page
-    .getByRole("button", { name: "Primeiro tratamento", exact: true })
-    .first()
-    .click();
+  await selectDocument("Primeiro tratamento");
   await page.getByText("Exportar", { exact: true }).click();
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Backup do projeto inteiro" }).click();
@@ -383,10 +440,7 @@ await step("Roteiro de várias páginas no editor e no PDF", async () => {
   await page
     .getByRole("button", { name: /O último farol \(restaurado\) Um roteiro/ })
     .click();
-  await page
-    .getByRole("button", { name: "Teste de paginação", exact: true })
-    .first()
-    .click();
+  await selectDocument("Teste de paginação");
   await page
     .getByRole("heading", { name: "Teste de paginação", exact: true })
     .waitFor();
@@ -440,26 +494,42 @@ await step("Roteiro de várias páginas no editor e no PDF", async () => {
   assert.equal(result.charPage, result.expectedCharPage);
   assert.match(result.pdfText, /Fim do teste/);
   await page.screenshot({ path: "artifacts/multiplas-paginas.png" });
-  await page
-    .getByRole("button", { name: "Importado PDF", exact: true })
-    .first()
-    .click();
+  await selectDocument("Importado PDF");
 });
 await step("Mobile sem perda de controles", async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Abrir navegação" }).click();
-  await page.getByRole("button", { name: "Fechar navegação" }).click();
-  await page.waitForFunction(
-    () =>
-      new DOMMatrixReadOnly(
-        getComputedStyle(document.querySelector(".sidebar")).transform,
-      ).m41 < -247,
-  );
+  await page.getByRole("button", { name: "Fechar painel" }).click();
+  await page
+    .getByRole("dialog", { name: "Seus documentos" })
+    .waitFor({ state: "hidden" });
   await page
     .getByRole("button", { name: "Alternar modo foco" })
     .scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Alternar modo foco" }).click();
   await page.getByRole("button", { name: "Alternar modo foco" }).click();
+  assert.equal(
+    await page
+      .locator(".editor-toolbar")
+      .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByRole("status", { name: "Salvo neste navegador", exact: true })
+      .isVisible(),
+    true,
+  );
+  const fontSize = await page
+    .locator(".screenplay")
+    .evaluate((el) => getComputedStyle(el).fontSize);
+  await page.getByLabel("Zoom da página").selectOption("100");
+  assert.notEqual(
+    await page
+      .locator(".screenplay")
+      .evaluate((el) => getComputedStyle(el).fontSize),
+    fontSize,
+  );
   await page.screenshot({ path: "artifacts/mobile.png", fullPage: true });
   assert.equal(
     await page
