@@ -36,7 +36,18 @@ type Props = {
   onChange: (doc: ScriptDoc) => void;
   onKind: (kind: Kind) => void;
   onPages: (pages: number) => void;
+  onHighlightChange?: (active: boolean) => void;
 };
+const isHighlighted = (state: EditorState) =>
+  state.selection.empty
+    ? (state.storedMarks ?? state.selection.$from.marks()).some(
+        (mark) => mark.type === schema.marks.highlight,
+      )
+    : state.doc.rangeHasMark(
+        state.selection.from,
+        state.selection.to,
+        schema.marks.highlight,
+      );
 const searchKey = new PluginKey("search");
 export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
   function ScreenplayEditor(props, ref) {
@@ -245,13 +256,11 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
           return schema
             .nodeFromJSON({
               type: "doc",
-              content: text
-                .split(/\r?\n/)
-                .map((line, i) => ({
-                  type: "block",
-                  attrs: { kind: i === 0 ? kind : "action" },
-                  ...(line ? { content: [{ type: "text", text: line }] } : {}),
-                })),
+              content: text.split(/\r?\n/).map((line, i) => ({
+                type: "block",
+                attrs: { kind: i === 0 ? kind : "action" },
+                ...(line ? { content: [{ type: "text", text: line }] } : {}),
+              })),
             })
             .slice(0);
         },
@@ -259,6 +268,7 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
           const state = view.state.apply(tr);
           view.updateState(state);
           callbacks.current.onKind(state.selection.$from.parent.attrs.kind);
+          callbacks.current.onHighlightChange?.(isHighlighted(state));
           if (tr.docChanged) {
             const doc = state.doc.toJSON() as ScriptDoc;
             callbacks.current.onChange(doc);
@@ -295,6 +305,7 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
       viewRef.current = view;
       callbacks.current.onPages(layout(props.doc.content, props.paper).pages);
       callbacks.current.onKind(view.state.selection.$from.parent.attrs.kind);
+      callbacks.current.onHighlightChange?.(isHighlighted(view.state));
       return () => {
         view.destroy();
         viewRef.current = null;

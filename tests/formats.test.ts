@@ -97,6 +97,37 @@ describe("Formatos de intercâmbio", () => {
     expect(styles).toContain('w:left="2880"');
     expect(doc).not.toContain("w:background");
   });
+  it("DOCX grava o marca-texto amarelo e Fountain/FDX preservam o texto sem estilos inválidos", async () => {
+    const d = makeManuscript("p", "Grifo");
+    d.doc = {
+      type: "doc",
+      content: [
+        {
+          type: "block",
+          attrs: { kind: "action" },
+          content: [
+            {
+              type: "text",
+              text: "Importante",
+              marks: [{ type: "bold" }, { type: "highlight" }],
+            },
+          ],
+        },
+      ],
+    };
+    const zip = await JSZip.loadAsync(
+      await (await docxExport(d)).arrayBuffer(),
+    );
+    expect(await zip.file("word/document.xml")!.async("string")).toContain(
+      'w:highlight w:val="yellow"',
+    );
+    expect(fdxExport(d)).toContain('Style="Bold"');
+    expect(fdxExport(d)).not.toContain("undefined");
+    expect(fdxExport(d)).not.toContain("Bold+");
+    expect(parseFountain(fountainExport(d)).doc.content.map(textOf)).toEqual([
+      "Importante",
+    ]);
+  });
   it("FDX escapa caracteres XML e preserva conteúdo em elementos Text", () => {
     const d = makeManuscript("p", "A & B");
     d.doc = {

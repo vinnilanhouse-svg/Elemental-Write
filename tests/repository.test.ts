@@ -68,7 +68,11 @@ describe("Persistência IndexedDB e backup", () => {
             {
               type: "text",
               text: "Coração e ação",
-              marks: [{ type: "bold" }, { type: "underline" }],
+              marks: [
+                { type: "bold" },
+                { type: "underline" },
+                { type: "highlight" },
+              ],
             },
             { type: "hard_break" },
             { type: "text", text: "Mais uma linha" },

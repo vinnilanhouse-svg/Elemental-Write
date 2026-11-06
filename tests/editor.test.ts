@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EditorState, TextSelection, type Command } from "prosemirror-state";
+import { toggleMark } from "prosemirror-commands";
 import { undo, redo } from "prosemirror-history";
 import {
   schema,
@@ -203,6 +204,45 @@ describe("Regras reais do editor ProseMirror", () => {
     e.run(redo);
     expect(e.state.doc.child(0).attrs.kind).toBe("parenthetical");
     expect(e.state.doc.child(0).textContent).toBe("(com calma)");
+  });
+  it("Grifa somente a seleção, combina com negrito e permite desfazer e remover", () => {
+    const e = editor("action", "Texto importante aqui");
+    e.run((state, dispatch) => {
+      dispatch?.(state.tr.setSelection(TextSelection.create(state.doc, 7, 17)));
+      return true;
+    });
+    e.run(toggleMark(schema.marks.bold));
+    e.run(toggleMark(schema.marks.highlight));
+    expect(e.state.doc.textContent).toBe("Texto importante aqui");
+    expect(e.state.doc.child(0).child(0).marks).toHaveLength(0);
+    expect(e.state.doc.child(0).child(1).text).toBe("importante");
+    expect(
+      e.state.doc
+        .child(0)
+        .child(1)
+        .marks.map((m) => m.type.name),
+    ).toEqual(["bold", "highlight"]);
+    e.run(undo);
+    expect(e.state.doc.rangeHasMark(7, 17, schema.marks.highlight)).toBe(false);
+    e.run(redo);
+    expect(e.state.doc.rangeHasMark(7, 17, schema.marks.highlight)).toBe(true);
+    e.run(toggleMark(schema.marks.highlight));
+    expect(e.state.doc.rangeHasMark(7, 17, schema.marks.highlight)).toBe(false);
+    expect(e.state.doc.rangeHasMark(7, 17, schema.marks.bold)).toBe(true);
+  });
+  it("O marca-texto também pode ser ativado para o texto que será digitado", () => {
+    const e = editor("action", "");
+    e.run(toggleMark(schema.marks.highlight));
+    e.run((state, dispatch) => {
+      dispatch?.(state.tr.insertText("Ideia destacada"));
+      return true;
+    });
+    expect(
+      e.state.doc
+        .child(0)
+        .child(0)
+        .marks.map((m) => m.type.name),
+    ).toEqual(["highlight"]);
   });
   for (const prefix of ["INT.", "EXT.", "INT./EXT."])
     it("Reconhece " + prefix, () => {

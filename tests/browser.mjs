@@ -190,6 +190,114 @@ await step(
     await page.getByRole("button", { name: "Fechar busca" }).click();
   },
 );
+await step(
+  "Marca-texto: seleção, persistência, remoção, histórico e arquivos",
+  async () => {
+    const count = page.getByRole("status", {
+      name: "Contador de páginas",
+      exact: true,
+    });
+    assert.match(await count.innerText(), /1 página/);
+    const initialPages = await count.innerText();
+    const button = page.getByRole("button", {
+      name: "Grifar texto",
+      exact: true,
+    });
+    await button.click();
+    assert.equal(await page.locator(".screenplay mark").innerText(), "lembra");
+    assert.equal(await button.getAttribute("aria-pressed"), "true");
+    assert.equal(await count.innerText(), initialPages);
+    await page
+      .getByRole("button", { name: "Salvar agora", exact: true })
+      .click();
+    await page
+      .locator(".save-state")
+      .filter({ hasText: /^Salvo neste navegador$/ })
+      .waitFor();
+    const files = await page.evaluate(async () => {
+      const { repository } = await import("/src/data/repository.ts");
+      const f = await import("/src/io/formats.ts");
+      const b = await import("/src/io/backup.ts");
+      const p = (
+        await repository.projects(localStorage.getItem("ew.profile"))
+      ).find((p) => p.title === "O último farol");
+      const doc = (await repository.documents(p.id)).find(
+        (d) => d.title === "Primeiro tratamento",
+      );
+      const hasGrifo = (d) =>
+        d.doc.content.some((block) =>
+          (block.content || []).some((span) =>
+            span.marks?.some((mark) => mark.type === "highlight"),
+          ),
+        );
+      const json = b.parseBackup(JSON.stringify(b.backup(p, [doc])));
+      const docx = await f.docxExport(doc);
+      const imported = await f.parseDOCX(new File([docx], "grifo.docx"));
+      const pdf = await f.pdfExport(doc);
+      await f.parsePDF(new File([pdf], "grifo.pdf"));
+      const pdfjs = await import("/node_modules/pdfjs-dist/build/pdf.mjs");
+      pdfjs.GlobalWorkerOptions.workerSrc =
+        "/node_modules/pdfjs-dist/build/pdf.worker.min.mjs";
+      const document = await pdfjs.getDocument({
+        data: new Uint8Array(await pdf.arrayBuffer()),
+        useSystemFonts: true,
+      }).promise;
+      let yellow = 0;
+      try {
+        const pdfPage = await document.getPage(1);
+        const viewport = pdfPage.getViewport({ scale: 1 });
+        const canvas = window.document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext("2d");
+        await pdfPage.render({ canvasContext: ctx, canvas, viewport }).promise;
+        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        for (let i = 0; i < pixels.length; i += 4)
+          if (
+            pixels[i] === 255 &&
+            pixels[i + 1] === 235 &&
+            pixels[i + 2] === 130
+          )
+            yellow++;
+      } finally {
+        await document.destroy();
+      }
+      return {
+        json: hasGrifo(json.documents[0]),
+        docx: hasGrifo({ doc: imported.doc }),
+        yellow,
+      };
+    });
+    assert.equal(files.json, true);
+    assert.equal(files.docx, true);
+    assert.ok(files.yellow > 20, "O PDF deve conter o fundo amarelo real.");
+    await page.reload();
+    await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
+    await page
+      .getByRole("button", { name: /O último farol Um roteiro/ })
+      .click();
+    await page.locator(".screenplay mark").waitFor();
+    assert.equal(await page.locator(".screenplay mark").innerText(), "lembra");
+    await page.screenshot({ path: "artifacts/grifo.png" });
+    await page.getByRole("button", { name: "Buscar no roteiro" }).click();
+    await page.getByLabel("Texto para buscar").fill("lembra");
+    await page.getByRole("button", { name: "Próxima ocorrência" }).click();
+    await page.getByRole("button", { name: "Fechar busca" }).click();
+    await button.click();
+    assert.equal(await page.locator(".screenplay mark").count(), 0);
+    await page.getByRole("button", { name: "Desfazer", exact: true }).click();
+    assert.equal(await page.locator(".screenplay mark").innerText(), "lembra");
+    await page.getByRole("button", { name: "Refazer", exact: true }).click();
+    assert.equal(await page.locator(".screenplay mark").count(), 0);
+    await page
+      .getByRole("button", { name: "Salvar agora", exact: true })
+      .click();
+    await page
+      .locator(".save-state")
+      .filter({ hasText: /^Salvo neste navegador$/ })
+      .waitFor();
+  },
+);
 await page.screenshot({ path: "artifacts/editor.png", fullPage: true });
 await step(
   "Segundo roteiro e nota; alternância sem misturar texto",
@@ -382,16 +490,30 @@ await step("Edição durante salvamento lento não é perdida", async () => {
   await page.evaluate(async () => {
     const { repository } = await import("/src/data/repository.ts");
     window.originalSave = repository.saveDocument.bind(repository);
+    let delayFirstSave = true;
+    window.releaseDelayedSave = null;
     repository.saveDocument = async (...args) => {
-      await new Promise((r) => setTimeout(r, 600));
+      if (delayFirstSave) {
+        delayFirstSave = false;
+        await new Promise((resolve) => {
+          window.releaseDelayedSave = resolve;
+        });
+      }
       return window.originalSave(...args);
     };
   });
   await page.locator(".screenplay").click();
   await page.keyboard.press("Control+End");
   await page.keyboard.type(" Primeira edição.");
-  await page.getByText("Salvando…", { exact: true }).waitFor();
+  await page.waitForFunction(
+    () => typeof window.releaseDelayedSave === "function",
+  );
+  assert.equal(
+    (await page.locator(".save-state").innerText()).trim(),
+    "Salvando…",
+  );
   await page.keyboard.type(" Edição mais recente.");
+  await page.evaluate(() => window.releaseDelayedSave());
   await page
     .locator(".save-state")
     .filter({ hasText: /^Salvo neste navegador$/ })
@@ -526,11 +648,23 @@ await step("Roteiro de várias páginas no editor e no PDF", async () => {
     };
   });
   assert.ok(result.pages >= 4);
+  const counter = page.getByRole("status", {
+    name: "Contador de páginas",
+    exact: true,
+  });
+  assert.equal((await counter.innerText()).trim(), `${result.pages} páginas`);
+  const counterBounds = await counter.boundingBox();
+  assert.ok(counterBounds.x > 1100 && counterBounds.y > 900);
   assert.equal(result.breaks, result.pages - 1);
   assert.equal(result.charPage, result.speechPage);
   assert.equal(result.charPage, result.expectedCharPage);
   assert.match(result.pdfText, /Fim do teste/);
   await page.screenshot({ path: "artifacts/multiplas-paginas.png" });
+  await page.locator(".screenplay").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("Uma página apenas.");
+  await counter.filter({ hasText: /^1 página$/ }).waitFor();
   await selectDocument("Importado PDF");
 });
 await step("Mobile sem perda de controles", async () => {
@@ -566,6 +700,12 @@ await step("Mobile sem perda de controles", async () => {
       .locator(".screenplay")
       .evaluate((el) => getComputedStyle(el).fontSize),
     fontSize,
+  );
+  assert.equal(
+    await page
+      .getByRole("status", { name: "Contador de páginas", exact: true })
+      .isVisible(),
+    true,
   );
   await page.screenshot({ path: "artifacts/mobile.png", fullPage: true });
   assert.equal(

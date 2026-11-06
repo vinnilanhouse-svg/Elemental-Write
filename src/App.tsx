@@ -36,6 +36,8 @@ import {
   Bold,
   Italic,
   Underline,
+  Highlighter,
+  Files,
   Save,
   Focus,
   ArrowDown,
@@ -1194,6 +1196,7 @@ function Workspace({
     [settings, setSettings] = useState(false),
     [outline, setOutline] = useState(false),
     [focus, setFocus] = useState(false),
+    [highlighted, setHighlighted] = useState(false),
     [exporting, setExporting] = useState("");
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -1327,6 +1330,7 @@ function Workspace({
                     : f.toUpperCase()}
                 </button>
               ))}
+              <small>Grifos são preservados em PDF, DOCX e JSON.</small>
               <hr />
               <button
                 onClick={(e) => {
@@ -1415,13 +1419,20 @@ function Workspace({
                 ["bold", "Negrito", <Bold size={17} />],
                 ["italic", "Itálico", <Italic size={17} />],
                 ["underline", "Sublinhado", <Underline size={17} />],
+                ["highlight", "Grifar texto", <Highlighter size={17} />],
               ] as [string, string, ReactNode][]
             ).map(([cmd, label, icon]) => (
               <button
                 key={cmd}
-                className="icon-button"
+                className={
+                  "icon-button " +
+                  (cmd === "highlight" && highlighted ? "is-active" : "")
+                }
                 aria-label={label}
-                title={label}
+                aria-pressed={cmd === "highlight" ? highlighted : undefined}
+                title={
+                  cmd === "highlight" && highlighted ? "Remover grifo" : label
+                }
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => editor.current?.command(cmd)}
               >
@@ -1615,6 +1626,7 @@ function Workspace({
                   onChange={(doc) => change({ doc })}
                   onKind={setKind}
                   onPages={setPages}
+                  onHighlightChange={setHighlighted}
                 />
                 <div className="paper-end">
                   {Array.from({ length: 3 }, (_, i) => (
@@ -1658,22 +1670,26 @@ function Workspace({
             </button>
           )}
         </div>
-        <div>
-          <span>{words.toLocaleString("pt-BR")} palavras</span>
+        <div className="document-metrics">
+          <span className="word-counter">
+            {words.toLocaleString("pt-BR")} palavras
+          </span>
           {value.kind === "script" && (
-            <>
-              <i />
+            <span
+              className="page-counter"
+              role="status"
+              aria-label="Contador de páginas"
+              aria-live="polite"
+              aria-atomic="true"
+              title={`Páginas do roteiro · ${value.paper === "letter" ? "Carta" : "A4"} · sem folha de rosto`}
+            >
+              <Files size={14} />
               <span>
-                {pages} {pages === 1 ? "página" : "páginas"}
+                <strong>{pages.toLocaleString("pt-BR")}</strong>{" "}
+                {pages === 1 ? "página" : "páginas"}
               </span>
-              <i />
-              <span>{value.paper === "letter" ? "Carta" : "A4"}</span>
-            </>
+            </span>
           )}
-          <button aria-label="Ajuda com atalhos" onClick={onHelp}>
-            <HelpCircle size={14} />
-            <span>Atalhos</span>
-          </button>
         </div>
       </footer>
       {settings && (

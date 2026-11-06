@@ -15,7 +15,7 @@ export const labels: Record<Kind, string> = {
   parenthetical: "Parênteses",
   transition: "Transição",
 };
-export type Mark = { type: "bold" | "italic" | "underline" };
+export type Mark = { type: "bold" | "italic" | "underline" | "highlight" };
 export type Span =
   | { type: "text"; text: string; marks?: Mark[] }
   | { type: "hard_break" };

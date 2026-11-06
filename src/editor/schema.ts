@@ -37,6 +37,7 @@ export const schema = new Schema({
     },
     italic: { parseDOM: [{ tag: "em" }, { tag: "i" }], toDOM: () => ["em", 0] },
     underline: { parseDOM: [{ tag: "u" }], toDOM: () => ["u", 0] },
+    highlight: { parseDOM: [{ tag: "mark" }], toDOM: () => ["mark", 0] },
   },
 });
 export const setKind =

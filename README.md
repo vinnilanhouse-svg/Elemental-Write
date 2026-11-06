@@ -48,7 +48,7 @@ Um push para `main` aciona o deploy quando a integração Git do projeto está h
 - Projetos com título, descrição e datas; criação, edição e exclusão confirmada.
 - Vários roteiros e notas por projeto; abrir, renomear, duplicar e excluir documentos.
 - Seis tipos reais de bloco, estilos monoespaçados de 12 pt, papel Carta ou A4, navegação por cenas, lista e sugestões de personagens.
-- Negrito, itálico, sublinhado, busca, zoom, palavras, páginas, numeração, título e autor, folha de rosto opcional no PDF/DOCX e modo foco.
+- Negrito, itálico, sublinhado, marca-texto amarelo, busca, zoom, palavras, contador de páginas visível no canto inferior direito, numeração, título e autor, folha de rosto opcional no PDF/DOCX e modo foco.
 - Salvamento automático a cada 5 minutos enquanto o documento estiver aberto, inclusive durante digitação contínua. Também salva depois de 650 ms sem digitação, na troca de documento, ao ocultar a página e manualmente. Sem alterações pendentes, não faz gravações desnecessárias. O indicador só diz “Salvo neste navegador” após concluir a transação. Abas em segundo plano podem ter seus temporizadores limitados pelo navegador; ao ocultar a página, o aplicativo também tenta salvar imediatamente.
 - Exportação de PDF, DOCX, Fountain, FDX e JSON. Notas também podem ser exportadas como TXT. Backup completo de projetos com roteiros e notas.
 - Importação Fountain/TXT, FDX, DOCX e PDF com texto selecionável, sempre com prévia e revisão dos tipos antes de criar um novo roteiro. Restauração JSON cria um novo projeto.
@@ -56,9 +56,9 @@ Um push para `main` aciona o deploy quando a integração Git do projeto está h
 
 ### Interface Foco essencial
 
-A área de escrita usa tons de carvão e papel, sem barras laterais fixas. Clique na marca **Elemental Write** no canto superior esquerdo para abrir projetos, roteiros, notas e perfil. **Cenas**, no canto inferior esquerdo, abre o índice e a lista de personagens. Os painéis podem ser fechados com Escape e devolvem o foco ao controle que os abriu.
+A área de escrita usa tons de carvão e papel, sem barras laterais fixas. O contador no canto inferior direito mostra o total de páginas do roteiro, sem folha de rosto, e acompanha as edições e o tamanho de papel selecionado. Ele permanece visível no celular e no modo foco. Clique na marca **Elemental Write** no canto superior esquerdo para abrir projetos, roteiros, notas e perfil. **Cenas**, no canto inferior esquerdo, abre o índice e a lista de personagens. Os painéis podem ser fechados com Escape e devolvem o foco ao controle que os abriu.
 
-A barra flutuante reúne tipos de bloco, formatação, histórico, busca, salvamento, zoom e modo foco. O menu de três pontos ao lado de **Exportar** reúne importação, configurações de página, tema e ajuda. No celular, a barra usa duas linhas e a escrita se adapta à largura da tela; PDF e DOCX continuam usando as medidas reais da página. A aparência do editor não altera seus textos nem a estrutura dos documentos salvos.
+A barra flutuante reúne tipos de bloco, formatação, histórico, busca, salvamento, zoom e modo foco. Selecione um trecho no roteiro e use **Grifar texto** para aplicar ou remover o marca-texto amarelo; ele combina com negrito, itálico e sublinhado e participa do desfazer/refazer. Sem seleção, o botão ativa o grifo para a próxima digitação. O grifo é salvo no navegador e preservado no backup JSON, no PDF exportado e no DOCX (inclusive na reimportação de DOCX). Fountain e FDX exportam o texto sem marca-texto; a importação assistida de PDF também não reconstrói esse destaque. O menu de três pontos ao lado de **Exportar** reúne importação, configurações de página, tema e ajuda. No celular, a barra usa duas linhas e a escrita se adapta à largura da tela; PDF e DOCX continuam usando as medidas reais da página. A aparência do editor não altera seus textos nem a estrutura dos documentos salvos.
 
 ### Teclado
 

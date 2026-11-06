@@ -946,8 +946,35 @@ p[data-kind="parenthetical"] .page-break:before {
 .editor-status .reveal-button:hover {
   background: var(--hover);
 }
-.editor-status > div:nth-child(2) > span:last-of-type {
-  display: none;
+.page-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.page-counter > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.page-counter strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.screenplay mark {
+  background: #e4c56b;
+  color: #242016;
+  border-radius: 2px;
+}
+:root[data-theme="light"] .screenplay mark {
+  background: #fff09a;
+  color: #332a18;
 }
 .focus-mode .workspace-header {
   display: none;
@@ -1884,6 +1911,20 @@ p[data-kind="parenthetical"] .page-break:before {
     padding-inline: 34px;
   }
 }
+@media (min-width: 801px) and (max-width: 1100px) {
+  .document-metrics .word-counter {
+    display: none;
+  }
+}
+@media (min-width: 801px) and (max-width: 900px) {
+  .editor-toolbar {
+    bottom: 57px;
+    max-width: calc(100% - 28px);
+  }
+  .editor-status {
+    bottom: 14px;
+  }
+}
 @media (max-width: 800px) {
   .topbar,
   .workspace-header {
@@ -1941,12 +1982,6 @@ p[data-kind="parenthetical"] .page-break:before {
   .editor-status .reveal-button {
     padding: 6px 11px;
     font-size: 10px;
-  }
-  .editor-status > div:nth-child(2) > span:last-of-type {
-    display: none;
-  }
-  .editor-status > div:nth-child(2) > i:last-of-type {
-    display: none;
   }
   .page-scroll {
     padding: 15px 20px 170px;
@@ -2408,6 +2443,28 @@ p[data-kind="parenthetical"] .page-break:before {
   }
   .workspace-header .save-state > svg {
     width: 14px;
+  }
+}
+@media (max-width: 600px) {
+  .page-counter {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
+@media (max-width: 360px) {
+  .editor-toolbar > select {
+    width: 80px;
+    font-size: 12px;
+  }
+  .editor-toolbar .icon-button {
+    width: 24px;
+  }
+  .page-counter {
+    font-size: 10px;
+    gap: 5px;
+  }
+  .document-metrics .word-counter {
+    font-size: 9px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

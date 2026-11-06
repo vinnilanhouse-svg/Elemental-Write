@@ -186,8 +186,16 @@ export function parseFountain(raw: string): {
     author,
   };
 }
+const fdxStyleAttribute = (marks: Mark[] = []) => {
+  const styles = marks.flatMap((mark) =>
+    mark.type === "highlight"
+      ? []
+      : [{ bold: "Bold", italic: "Italic", underline: "Underline" }[mark.type]],
+  );
+  return styles.length ? ` Style="${styles.join("+")}"` : "";
+};
 export function fdxExport(d: Manuscript) {
-  return `<?xml version="1.0" encoding="UTF-8"?><FinalDraft DocumentType="Script" Template="No" Version="1"><Content>${d.doc.content.map((b) => `<Paragraph Type="${styleNames[b.attrs.kind]}">${b.content?.map((s) => (s.type === "hard_break" ? "<Text>\n</Text>" : `<Text${s.marks?.length ? ` Style="${s.marks.map((m) => ({ bold: "Bold", italic: "Italic", underline: "Underline" })[m.type]).join("+")}"` : ""}>${esc(uppercase(b.attrs.kind) ? s.text.toLocaleUpperCase("pt-BR") : s.text)}</Text>`)).join("") || "<Text></Text>"}</Paragraph>`).join("")}</Content><TitlePage><Content><Paragraph Type="Title"><Text>${esc(d.title)}</Text></Paragraph><Paragraph Type="Author"><Text>${esc(d.author)}</Text></Paragraph></Content></TitlePage></FinalDraft>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><FinalDraft DocumentType="Script" Template="No" Version="1"><Content>${d.doc.content.map((b) => `<Paragraph Type="${styleNames[b.attrs.kind]}">${b.content?.map((s) => (s.type === "hard_break" ? "<Text>\n</Text>" : `<Text${fdxStyleAttribute(s.marks)}>${esc(uppercase(b.attrs.kind) ? s.text.toLocaleUpperCase("pt-BR") : s.text)}</Text>`)).join("") || "<Text></Text>"}</Paragraph>`).join("")}</Content><TitlePage><Content><Paragraph Type="Title"><Text>${esc(d.title)}</Text></Paragraph><Paragraph Type="Author"><Text>${esc(d.author)}</Text></Paragraph></Content></TitlePage></FinalDraft>`;
 }
 export function parseXml(xml: string) {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml))
@@ -280,6 +288,9 @@ export async function docxExport(d: Manuscript) {
                 text: uppercase(b.attrs.kind)
                   ? s.text.toLocaleUpperCase("pt-BR")
                   : s.text,
+                highlight: s.marks?.some((m) => m.type === "highlight")
+                  ? "yellow"
+                  : undefined,
                 bold: s.marks?.some((m) => m.type === "bold"),
                 italics: s.marks?.some((m) => m.type === "italic"),
                 underline: s.marks?.some((m) => m.type === "underline")
@@ -393,6 +404,8 @@ export async function parseDOCX(file: File) {
         )
           marks.push({ type });
       }
+      const highlight = elements(r, "highlight")[0]?.getAttributeNS(ns, "val");
+      if (highlight && highlight !== "none") marks.push({ type: "highlight" });
       for (const c of [...r.children]) {
         if (c.localName === "t" && c.textContent)
           spans.push({
@@ -505,8 +518,12 @@ export async function pdfExport(d: Manuscript) {
                   ? "italic"
                   : "normal",
           );
-          pdf.text(formatted, x, line.y + 12);
           const width = pdf.getTextWidth(formatted);
+          if (s.marks?.some((mark) => mark.type === "highlight")) {
+            pdf.setFillColor(255, 235, 130);
+            pdf.rect(x, line.y + 1, width, g.line, "F");
+          }
+          pdf.text(formatted, x, line.y + 12);
           if (s.marks?.some((m) => m.type === "underline"))
             pdf.line(x, line.y + 14, x + width, line.y + 14);
           x += width;

@@ -35,7 +35,9 @@ export function validateDoc(value: unknown): value is ScriptDoc {
                   (!s.marks ||
                     (Array.isArray(s.marks) &&
                       s.marks.every((m) =>
-                        ["bold", "italic", "underline"].includes(m.type),
+                        ["bold", "italic", "underline", "highlight"].includes(
+                          m.type,
+                        ),
                       )))),
             ))),
     )
