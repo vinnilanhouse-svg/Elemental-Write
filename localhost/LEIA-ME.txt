@@ -1,0 +1,44 @@
+ELEMENTAL WRITE — VERSÃO LOCALHOST
+
+Este pacote já contém o aplicativo compilado, com a logo e as fontes.
+Não é necessário npm install, conta externa ou chave de API.
+
+1. Instale o Node.js LTS (recomendado 22 ou superior): https://nodejs.org
+2. Extraia TODO o arquivo ZIP para uma pasta no seu computador.
+3. Inicie conforme seu sistema:
+   Windows: dê dois cliques em Iniciar-Windows.bat.
+   macOS: abra o Terminal nessa pasta e execute: node iniciar.cjs
+     Alternativa: chmod +x Iniciar-Mac.command e abra esse arquivo.
+   Linux: abra o terminal nessa pasta e execute: sh iniciar-linux.sh
+4. Acesse http://localhost:5173 no navegador.
+   O iniciador tenta abrir o navegador automaticamente.
+5. Mantenha a janela do iniciador aberta durante o uso.
+   Para encerrar, pressione Ctrl+C nessa janela.
+
+Alternativa em todos os sistemas: node iniciar.cjs
+
+Não abra app/index.html com dois cliques: é preciso usar o servidor localhost.
+O servidor só escuta no próprio computador (127.0.0.1), na porta 5173.
+Se essa porta estiver ocupada, o iniciador avisará e não mudará a porta sozinho.
+
+DADOS E BACKUP
+
+Os perfis e textos ficam no navegador, em IndexedDB. Eles não ficam dentro
+deste ZIP. Use sempre o mesmo navegador e http://localhost:5173 para encontrar
+os mesmos dados. http://127.0.0.1:5173 é uma origem diferente.
+Dados da versão na nuvem não são transferidos automaticamente: exporte um
+backup JSON na versão anterior e importe esse arquivo na versão localhost.
+Perfis locais não são autenticação segura. Limpar os dados do site pode
+apagar o conteúdo. Use Exportar > Backup do projeto inteiro regularmente.
+Após baixar e extrair este pacote, o aplicativo funciona sem internet;
+a instalação inicial do Node.js exige baixá-lo antes, caso não esteja instalado.
+
+LIMITAÇÕES
+
+Importação PDF aproximada, apenas com texto selecionável e sem OCR.
+O Word pode repaginar DOCX ou substituir fontes. As fontes e sua licença
+estão em app/fonts/. O corretor depende do dicionário pt-BR do navegador.
+O pacote não contém contas nem projetos pessoais.
+
+A fonte do aplicativo e a documentação técnica permanecem no projeto
+Elemental-Write; este ZIP é a distribuição local pronta para usar.

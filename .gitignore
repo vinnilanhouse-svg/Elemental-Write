@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.local
+playwright-report/
+test-results/
+
+*.tsbuildinfo
+artifacts/
+
+releases/
+
+.vercel/
+.env
+.env.*
+!.env.example

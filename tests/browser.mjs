@@ -1,0 +1,520 @@
+import { chromium } from "@playwright/test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
+const browser = await chromium.launch({
+  executablePath:
+    process.env.CHROMIUM_PATH ||
+    (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined),
+  headless: true,
+  args: ["--no-sandbox"],
+});
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 1000 },
+  acceptDownloads: true,
+});
+const page = await context.newPage();
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+const step = async (name, fn) => {
+  await fn();
+  console.log("PASS", name);
+};
+await page.goto(process.env.BASE_URL || "http://localhost:5173");
+await page.screenshot({ path: "artifacts/login.png", fullPage: true });
+await step("Criar perfil local", async () => {
+  await page.getByLabel("Como podemos chamar você?").fill("Ana Ribeiro");
+  await page.getByLabel("E-mail do perfil").fill("ana@example.com");
+  await page.getByRole("button", { name: "Entrar no meu espaço" }).click();
+  await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
+});
+await page.screenshot({ path: "artifacts/dashboard.png", fullPage: true });
+await step("Criar projeto", async () => {
+  await page.getByRole("button", { name: "Novo projeto", exact: true }).click();
+  await page
+    .getByLabel("Título do projeto", { exact: true })
+    .fill("O último farol");
+  await page
+    .getByLabel("Descrição (opcional)")
+    .fill("Um roteiro sobre memória e reencontros.");
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page
+    .getByRole("heading", { name: "O último farol", exact: true })
+    .waitFor();
+});
+await step("Criar roteiro e escrever com blocos estruturados", async () => {
+  await page
+    .getByRole("button", { name: "Criar roteiro", exact: true })
+    .click();
+  await page.getByLabel("Título", { exact: true }).fill("Primeiro tratamento");
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.locator(".screenplay").click();
+  await page.keyboard.type("INT. CASA - DIA");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Lia abre a porta.");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("LIA");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Você ainda se lembra?");
+  await page.keyboard.press("Enter");
+  assert.equal(
+    await page.getByLabel("Tipo do bloco", { exact: true }).inputValue(),
+    "character",
+  );
+  await page.keyboard.type("TOMAS");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Nunca esqueci.");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("LI");
+  await page.getByRole("option", { name: "LIA", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("Tipo do bloco", { exact: true }).inputValue(),
+    "character",
+  );
+  await page.keyboard.press("Enter");
+  assert.equal(
+    await page.getByLabel("Tipo do bloco", { exact: true }).inputValue(),
+    "dialogue",
+  );
+  await page.keyboard.type("Então vamos continuar.");
+  await page.getByRole("button", { name: "Salvar agora", exact: true }).click();
+  await page
+    .locator(".save-state")
+    .filter({ hasText: /^Salvo neste navegador$/ })
+    .waitFor();
+});
+await page.screenshot({ path: "artifacts/editor.png", fullPage: true });
+await step(
+  "Segundo roteiro e nota; alternância sem misturar texto",
+  async () => {
+    await page
+      .getByRole("button", { name: "Novo roteiro", exact: true })
+      .click();
+    await page.getByLabel("Título", { exact: true }).fill("Segundo tratamento");
+    await page.getByRole("button", { name: "Salvar", exact: true }).click();
+    await page.locator(".screenplay").click();
+    await page.keyboard.type("EXT. PRAIA - NOITE");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("As ondas chegam.");
+    await page.getByRole("button", { name: "Nova nota", exact: true }).click();
+    await page
+      .getByLabel("Título", { exact: true })
+      .fill("Referências visuais");
+    await page.getByRole("button", { name: "Salvar", exact: true }).click();
+    await page.getByLabel("Corpo da nota").fill("Luz do farol. Memória e mar.");
+    await page
+      .getByRole("button", { name: "Primeiro tratamento", exact: true })
+      .first()
+      .click();
+    assert.ok(
+      (await page.locator(".screenplay").innerText()).includes(
+        "Você ainda se lembra?",
+      ),
+    );
+    assert.ok(
+      !(await page.locator(".screenplay").innerText()).includes(
+        "As ondas chegam.",
+      ),
+    );
+  },
+);
+await step("Recarregar e restaurar perfil, projeto e textos", async () => {
+  await page.reload();
+  await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
+  await page.getByRole("button", { name: /O último farol Um roteiro/ }).click();
+  await page
+    .getByRole("heading", { name: "Primeiro tratamento", exact: true })
+    .waitFor();
+  assert.ok(
+    (await page.locator(".screenplay").innerText()).includes(
+      "Então vamos continuar.",
+    ),
+  );
+  await page
+    .getByRole("button", { name: "Referências visuais", exact: true })
+    .first()
+    .click();
+  assert.equal(
+    await page.getByLabel("Corpo da nota").inputValue(),
+    "Luz do farol. Memória e mar.",
+  );
+});
+await step("Tema persistido por perfil", async () => {
+  await page.getByRole("button", { name: "Ativar tema claro" }).click();
+  await page.getByRole("button", { name: "Ativar tema escuro" }).waitFor();
+  await page.reload();
+  await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
+  assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
+  await page.getByRole("button", { name: /O último farol Um roteiro/ }).click();
+  await page.getByRole("button", { name: "Ativar tema escuro" }).click();
+});
+await step("Isolamento entre perfis", async () => {
+  await page.getByRole("button", { name: "Sair do perfil" }).click();
+  await page.getByRole("button", { name: "Criar outro perfil" }).click();
+  await page.getByLabel("Como podemos chamar você?").fill("Bruno");
+  await page.getByLabel("E-mail do perfil").fill("bruno@example.com");
+  await page.getByRole("button", { name: "Entrar no meu espaço" }).click();
+  await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "O último farol", exact: true })
+      .count(),
+    0,
+  );
+  await page.getByRole("button", { name: "Sair do perfil" }).click();
+  await page
+    .getByRole("button", { name: /Ana Ribeiro ana@example.com/ })
+    .click();
+  await page.getByRole("button", { name: /O último farol Um roteiro/ }).click();
+});
+await step(
+  "Exportações e reimportações reais PDF/DOCX/FDX/Fountain; backup completo",
+  async () => {
+    const result = await page.evaluate(async () => {
+      const f = await import("/src/io/formats.ts");
+      const m = await import("/src/model.ts");
+      const { repository } = await import("/src/data/repository.ts");
+      const p = (
+        await repository.projects(localStorage.getItem("ew.profile"))
+      ).find((p) => p.title === "O último farol");
+      const docs = await repository.documents(p.id);
+      const script = docs.find((d) => d.title === "Primeiro tratamento");
+      script.titlePage = true;
+      script.author = "Ana — coração e ação";
+      script.doc.content.push({
+        type: "block",
+        attrs: { kind: "action" },
+        content: [
+          {
+            type: "text",
+            text: "Ação, coração, memória e você.",
+            marks: [
+              { type: "bold" },
+              { type: "italic" },
+              { type: "underline" },
+            ],
+          },
+        ],
+      });
+      const docx = await f.docxExport(script);
+      const parsedDocx = await f.parseDOCX(new File([docx], "roteiro.docx"));
+      const fdx = f.fdxExport(script);
+      const parsedFDX = f.parseFDX(fdx);
+      const fountain = f.fountainExport(script);
+      const parsedFountain = f.parseFountain(fountain);
+      const pdf = await f.pdfExport(script);
+      const parsedPDF = await f.parsePDF(new File([pdf], "roteiro.pdf"));
+      const b = await import("/src/io/backup.ts");
+      const saved = b.parseBackup(JSON.stringify(b.backup(p, docs)));
+      return {
+        docxSize: docx.size,
+        pdfSize: pdf.size,
+        pdf: parsedPDF.doc.content.map(m.textOf).join("\n"),
+        docx: parsedDocx.doc.content.map(m.textOf).join("\n"),
+        fdx: parsedFDX.doc,
+        fountain: parsedFountain.doc,
+        original: script.doc,
+        backupCount: saved.documents.length,
+        backupNote: saved.documents.find((d) => d.kind === "note").body,
+      };
+    });
+    assert.ok(result.docxSize > 5000);
+    assert.ok(result.pdfSize > 10000);
+    assert.match(result.pdf, /coração/);
+    assert.match(result.docx, /memória e você/);
+    assert.deepEqual(result.fdx, result.original);
+    assert.deepEqual(result.fountain, result.original);
+    assert.equal(result.backupCount, 3);
+    assert.equal(result.backupNote, "Luz do farol. Memória e mar.");
+  },
+);
+await step("Downloads da interface e restauração por arquivo", async () => {
+  await page
+    .getByRole("button", { name: "Primeiro tratamento", exact: true })
+    .first()
+    .click();
+  await page.getByText("Exportar", { exact: true }).click();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Backup do projeto inteiro" }).click();
+  const d = await pending;
+  await d.saveAs("artifacts/projeto.json");
+  const b = JSON.parse(await fs.readFile("artifacts/projeto.json", "utf8"));
+  assert.equal(b.documents.length, 3);
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("artifacts/projeto.json");
+  await page
+    .getByRole("button", { name: "Restaurar projeto", exact: true })
+    .click();
+  await page
+    .getByText("Backup restaurado em um novo projeto.", { exact: true })
+    .waitFor();
+});
+await step("Exportar e importar cada formato pela interface", async () => {
+  for (const ext of ["fountain", "fdx", "docx", "pdf"]) {
+    await page.getByText("Exportar", { exact: true }).click();
+    const pending = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: ext.toUpperCase(), exact: true })
+      .click();
+    const file = await pending;
+    const target = "artifacts/exportado." + ext;
+    await file.saveAs(target);
+    assert.ok((await fs.stat(target)).size > 20);
+    await page.locator("input[type=file]").setInputFiles(target);
+    const dialog = page.getByRole("dialog", { name: "Revisar importação" });
+    await dialog.waitFor();
+    await dialog
+      .getByLabel("Título do novo roteiro")
+      .fill("Importado " + ext.toUpperCase());
+    await dialog
+      .getByRole("button", { name: "Importar roteiro", exact: true })
+      .click();
+    await page
+      .getByRole("heading", {
+        name: "Importado " + ext.toUpperCase(),
+        exact: true,
+      })
+      .waitFor();
+    assert.ok(
+      (await page.locator(".screenplay").innerText()).includes(
+        "Você ainda se lembra?",
+      ),
+    );
+  }
+});
+await step("Edição durante salvamento lento não é perdida", async () => {
+  await page.evaluate(async () => {
+    const { repository } = await import("/src/data/repository.ts");
+    window.originalSave = repository.saveDocument.bind(repository);
+    repository.saveDocument = async (...args) => {
+      await new Promise((r) => setTimeout(r, 600));
+      return window.originalSave(...args);
+    };
+  });
+  await page.locator(".screenplay").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type(" Primeira edição.");
+  await page.getByText("Salvando…", { exact: true }).waitFor();
+  await page.keyboard.type(" Edição mais recente.");
+  await page
+    .locator(".save-state")
+    .filter({ hasText: /^Salvo neste navegador$/ })
+    .waitFor();
+  const text = await page.evaluate(async () => {
+    const { repository } = await import("/src/data/repository.ts");
+    repository.saveDocument = window.originalSave;
+    const { textOf } = await import("/src/model.ts");
+    for (const p of await repository.projects(
+      localStorage.getItem("ew.profile"),
+    )) {
+      const doc = (await repository.documents(p.id)).find(
+        (d) => d.title === "Importado PDF",
+      );
+      if (doc) return doc.doc.content.map(textOf).join(" ");
+    }
+  });
+  assert.match(text, /Primeira edição. Edição mais recente./);
+});
+await step(
+  "Falha de gravação preserva texto e permite nova tentativa",
+  async () => {
+    await page.evaluate(async () => {
+      const { repository } = await import("/src/data/repository.ts");
+      window.originalSave = repository.saveDocument.bind(repository);
+      repository.saveDocument = async () => {
+        throw new Error("Espaço insuficiente no navegador (teste).");
+      };
+    });
+    await page.locator(".screenplay").click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" Texto protegido.");
+    await page.getByRole("alert").waitFor();
+    assert.match(
+      await page.locator(".screenplay").innerText(),
+      /Texto protegido/,
+    );
+    await page.evaluate(async () => {
+      const { repository } = await import("/src/data/repository.ts");
+      repository.saveDocument = window.originalSave;
+    });
+    await page
+      .getByRole("button", { name: "Tentar salvar", exact: true })
+      .click();
+    await page
+      .locator(".save-state")
+      .filter({ hasText: /^Salvo neste navegador$/ })
+      .waitFor();
+  },
+);
+await step("Roteiro de várias páginas no editor e no PDF", async () => {
+  await page.evaluate(async () => {
+    const { repository } = await import("/src/data/repository.ts");
+    const { makeManuscript, block } = await import("/src/model.ts");
+    const projects = await repository.projects(
+      localStorage.getItem("ew.profile"),
+    );
+    const p = projects.find((p) => p.title.includes("(restaurado)"));
+    const d = makeManuscript(p.id, "Teste de paginação");
+    d.doc = {
+      type: "doc",
+      content: [
+        block("scene", "INT. SALA - DIA"),
+        ...Array.from({ length: 22 }, () =>
+          block("action", "Uma ação breve para preencher a página."),
+        ),
+        block("character", "LIA"),
+        block("parenthetical", "(calmamente)"),
+        block(
+          "dialogue",
+          "Todas as palavras precisam continuar na página seguinte. ".repeat(
+            150,
+          ),
+        ),
+        block("scene", "EXT. JARDIM - DIA"),
+        block("action", "Fim do teste."),
+      ],
+    };
+    await repository.createDocument(d);
+  });
+  await page.reload();
+  await page.getByRole("heading", { name: "Meus projetos" }).waitFor();
+  await page
+    .getByRole("button", { name: /O último farol \(restaurado\) Um roteiro/ })
+    .click();
+  await page
+    .getByRole("button", { name: "Teste de paginação", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("heading", { name: "Teste de paginação", exact: true })
+    .waitFor();
+  const result = await page.evaluate(async () => {
+    const { repository } = await import("/src/data/repository.ts");
+    const { layout } = await import("/src/editor/layout.ts");
+    const { pdfExport, parsePDF } = await import("/src/io/formats.ts");
+    const { textOf } = await import("/src/model.ts");
+    const projects = await repository.projects(
+      localStorage.getItem("ew.profile"),
+    );
+    const p = projects.find((p) => p.title.includes("(restaurado)"));
+    const doc = (await repository.documents(p.id)).find(
+      (d) => d.title === "Teste de paginação",
+    );
+    const plan = layout(doc.doc.content, doc.paper);
+    const pdf = await pdfExport(doc);
+    const parsed = await parsePDF(new File([pdf], "longo.pdf"));
+    const paper = document.querySelector(".paper");
+    const character = document.querySelector("p[data-kind=character]");
+    const speech = document.querySelector("p[data-kind=dialogue]");
+    const factor = Number(paper.style.zoom);
+    const actualPage = (el) => {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const text = walker.nextNode();
+      const range = document.createRange();
+      range.setStart(text, 0);
+      range.setEnd(text, 1);
+      return (
+        Math.floor(
+          (((range.getBoundingClientRect().top -
+            paper.getBoundingClientRect().top) /
+            factor) *
+            0.75) /
+            (plan.geometry.height + 18),
+        ) + 1
+      );
+    };
+    return {
+      pages: plan.pages,
+      breaks: document.querySelectorAll(".page-break").length,
+      charPage: actualPage(character),
+      speechPage: actualPage(speech),
+      expectedCharPage: plan.lines.find((l) => l.kind === "character").page,
+      pdfText: parsed.doc.content.map(textOf).join(" "),
+    };
+  });
+  assert.ok(result.pages >= 4);
+  assert.equal(result.breaks, result.pages - 1);
+  assert.equal(result.charPage, result.speechPage);
+  assert.equal(result.charPage, result.expectedCharPage);
+  assert.match(result.pdfText, /Fim do teste/);
+  await page.screenshot({ path: "artifacts/multiplas-paginas.png" });
+  await page
+    .getByRole("button", { name: "Importado PDF", exact: true })
+    .first()
+    .click();
+});
+await step("Mobile sem perda de controles", async () => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Abrir navegação" }).click();
+  await page.getByRole("button", { name: "Fechar navegação" }).click();
+  await page.waitForFunction(
+    () =>
+      new DOMMatrixReadOnly(
+        getComputedStyle(document.querySelector(".sidebar")).transform,
+      ).m41 < -247,
+  );
+  await page
+    .getByRole("button", { name: "Alternar modo foco" })
+    .scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Alternar modo foco" }).click();
+  await page.getByRole("button", { name: "Alternar modo foco" }).click();
+  await page.screenshot({ path: "artifacts/mobile.png", fullPage: true });
+  assert.equal(
+    await page
+      .locator("body")
+      .evaluate((el) => el.scrollWidth <= window.innerWidth),
+    true,
+  );
+});
+await step(
+  "Conflito entre duas abas é detectado sem apagar texto",
+  async () => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const second = await context.newPage();
+    await second.goto(process.env.BASE_URL || "http://localhost:5173");
+    await second.getByRole("heading", { name: "Meus projetos" }).waitFor();
+    await second.evaluate(async () => {
+      const { repository } = await import("/src/data/repository.ts");
+      for (const p of await repository.projects(
+        localStorage.getItem("ew.profile"),
+      )) {
+        const doc = (await repository.documents(p.id)).find(
+          (d) => d.title === "Importado PDF",
+        );
+        if (doc) {
+          await repository.saveDocument(
+            { ...doc, author: "Outra aba" },
+            doc.revision,
+          );
+          return;
+        }
+      }
+      throw Error("Documento de teste não encontrado");
+    });
+    await page.locator(".screenplay").click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" Texto exclusivo desta aba.");
+    await page.getByRole("alert").waitFor();
+    assert.match(await page.getByRole("alert").innerText(), /outra aba/);
+    assert.match(
+      await page.locator(".screenplay").innerText(),
+      /Texto exclusivo desta aba/,
+    );
+    const pending = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Exportar texto atual", exact: true })
+      .click();
+    const file = await pending;
+    await file.saveAs("artifacts/conflito.json");
+    assert.match(
+      await fs.readFile("artifacts/conflito.json", "utf8"),
+      /Texto exclusivo desta aba/,
+    );
+    await second.close();
+  },
+);
+assert.deepEqual(errors, []);
+console.log("Todos os fluxos de navegador passaram.");
+await browser.close();
