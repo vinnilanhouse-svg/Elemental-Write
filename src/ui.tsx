@@ -6,7 +6,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       <img src="/logo.png" alt="" />
       {!compact && (
         <span>
-          elemental<span className="brand-light"> write</span>
+          Elemental<span className="brand-light"> Write</span>
           <small>ESPAÇO PARA SUAS HISTÓRIAS</small>
         </span>
       )}
