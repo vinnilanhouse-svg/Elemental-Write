@@ -54,7 +54,7 @@ export function fountainExport(d: Manuscript) {
             ? "@" + t.toLocaleUpperCase("pt-BR")
             : k === "transition"
               ? ">" + t.toLocaleUpperCase("pt-BR")
-              : k === "parenthetical" && !t.startsWith("(")
+              : k === "parenthetical" && !textOf(b).trimStart().startsWith("(")
                 ? "(" + t + ")"
                 : t;
   });
@@ -121,6 +121,13 @@ export function parseFountain(raw: string): {
       ...(content.length ? { content } : {}),
     });
   };
+  const isParenthetical = (value: string) => {
+    const plain = parseInline(value)
+      .map((span) => (span.type === "text" ? span.text : "\n"))
+      .join("")
+      .trim();
+    return /^\([\s\S]*\)$/.test(plain);
+  };
   for (const rawParagraph of lines.join("\n").split(/\n[ \t]*\n/)) {
     const paragraph = rawParagraph.replace(/^\n+|\n+$/g, "");
     if (!paragraph.trim()) continue;
@@ -141,6 +148,12 @@ export function parseFountain(raw: string): {
       push("transition", paragraph.replace(/^>/, ""));
       continue;
     }
+    if (isParenthetical(first)) {
+      if (rows.every(isParenthetical))
+        rows.forEach((row) => push("parenthetical", row));
+      else push("parenthetical", paragraph);
+      continue;
+    }
     const cue =
       first.startsWith("@") ||
       (rows.length > 1 &&
@@ -157,16 +170,12 @@ export function parseFountain(raw: string): {
         }
       };
       for (const row of rows.slice(1)) {
-        if (/^\(.*\)$/.test(row)) {
+        if (isParenthetical(row)) {
           flush();
           push("parenthetical", row);
         } else speech.push(row);
       }
       flush();
-      continue;
-    }
-    if (/^\(.*\)$/.test(first)) {
-      push("parenthetical", paragraph);
       continue;
     }
     push("action", paragraph);

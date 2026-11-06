@@ -44,11 +44,42 @@ export const setKind =
   (state, dispatch) => {
     const { $from } = state.selection;
     if ($from.depth !== 1) return false;
-    dispatch?.(
-      state.tr
-        .setNodeMarkup($from.before(), undefined, { kind })
-        .scrollIntoView(),
+    const start = $from.start();
+    const end = $from.end();
+    const text = $from.parent.textBetween(
+      0,
+      $from.parent.content.size,
+      "",
+      "\n",
     );
+    const tr = state.tr.setNodeMarkup($from.before(), undefined, { kind });
+    if (kind === "parenthetical") {
+      // Insert around the existing content so marks and hard breaks survive.
+      const trimmed = text.trim();
+      if (!trimmed.endsWith(")")) tr.insertText(")", end);
+      if (!trimmed.startsWith("(")) tr.insertText("(", start);
+      if (state.selection.$from.sameParent(state.selection.$to)) {
+        const node = tr.doc.nodeAt($from.before())!;
+        const content = node.textBetween(0, node.content.size, "", "\n");
+        const insideStart = start + content.indexOf("(") + 1;
+        const insideEnd = start + content.lastIndexOf(")");
+        const clamp = (pos: number) =>
+          Math.max(insideStart, Math.min(insideEnd, pos));
+        tr.setSelection(
+          TextSelection.create(
+            tr.doc,
+            clamp(tr.selection.anchor),
+            clamp(tr.selection.head),
+          ),
+        );
+      }
+    } else if (
+      $from.parent.attrs.kind === "parenthetical" &&
+      /^\(\s*\)$/.test(text)
+    ) {
+      tr.delete(start, end);
+    }
+    dispatch?.(tr.scrollIntoView());
     return true;
   };
 export const cycleKind =
@@ -64,6 +95,28 @@ export const enter: Command = (state, dispatch) => {
   const kind = $from.parent.attrs.kind as Kind;
   if (kind === "character" && !$from.parent.textContent.trim())
     return setKind("action")(state, dispatch);
+  if (
+    kind === "parenthetical" &&
+    state.selection.empty &&
+    /^\)\s*$/.test(
+      $from.parent.textBetween(
+        $from.parentOffset,
+        $from.parent.content.size,
+        "",
+        "\n",
+      ),
+    )
+  ) {
+    // Enter after the inner text leaves the closing parenthesis in this block.
+    const tr = state.tr.setSelection(
+      TextSelection.create(state.doc, $from.end()),
+    );
+    tr.split($from.end(), 1, [
+      { type: schema.nodes.block, attrs: { kind: "dialogue" } },
+    ]);
+    dispatch?.(tr.scrollIntoView());
+    return true;
+  }
   let result = state.tr;
   const ok = splitBlock(state, (tr) => {
     result = tr;
@@ -76,6 +129,16 @@ export const enter: Command = (state, dispatch) => {
 };
 export const backspaceEmpty: Command = (state, dispatch) => {
   const { $from, empty } = state.selection;
+  if (
+    empty &&
+    $from.parent.attrs.kind === "parenthetical" &&
+    $from.parentOffset <= 1 &&
+    /^\(\s*\)$/.test(
+      $from.parent.textBetween(0, $from.parent.content.size, "", "\n"),
+    )
+  ) {
+    return setKind("action")(state, dispatch);
+  }
   if (
     empty &&
     $from.parentOffset === 0 &&

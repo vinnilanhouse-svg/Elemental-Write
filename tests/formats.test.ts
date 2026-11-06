@@ -8,6 +8,37 @@ import {
   fdxExport,
 } from "../src/io/formats";
 describe("Formatos de intercâmbio", () => {
+  it("Fountain preserva parênteses com marcas sem duplicar os sinais", () => {
+    const d = makeManuscript("p", "Teste");
+    d.doc = {
+      type: "doc",
+      content: [
+        block("character", "LIA"),
+        {
+          type: "block",
+          attrs: { kind: "parenthetical" },
+          content: [
+            { type: "text", text: "(sussurrando)", marks: [{ type: "bold" }] },
+          ],
+        },
+        block("dialogue", "Mais uma chance."),
+      ],
+    };
+    const exported = fountainExport(d);
+    expect(exported).toContain("**(sussurrando)**");
+    expect(parseFountain(exported).doc).toEqual(d.doc);
+  });
+  it("Fountain preserva indicações consecutivas como blocos independentes", () => {
+    const d = makeManuscript("p", "Teste");
+    d.doc = {
+      type: "doc",
+      content: [
+        block("parenthetical", "(GRITANDO)"),
+        block("parenthetical", "(sem perder palavras)"),
+      ],
+    };
+    expect(parseFountain(fountainExport(d)).doc).toEqual(d.doc);
+  });
   it("Fountain preserva o primeiro cabeçalho, parágrafos, falas, quebras e marcas", () => {
     const d = makeManuscript("p", "Coração");
     d.author = "João";

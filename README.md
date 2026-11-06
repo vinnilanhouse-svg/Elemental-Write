@@ -75,6 +75,7 @@ A barra flutuante reúne tipos de bloco, formatação, histórico, busca, salvam
 - **Enter** em personagem vazio: muda para ação, sem acumular blocos.
 - **Backspace** no início de bloco vazio: retorna a ação; outro Backspace pode unir blocos pelo comportamento do motor.
 - **Tab / Shift+Tab**: percorre tipos; o seletor da barra também permite trocar o tipo.
+- Ao escolher **Parênteses**, o editor insere `()` e posiciona o cursor dentro. Se o bloco já tiver texto, ele é envolvido pelos parênteses sem perder a formatação. Enter ao final da indicação abre a fala seguinte, mantendo o fechamento no bloco de parênteses.
 - **INT.**, **EXT.** ou **INT./EXT.** seguidos de espaço em ação: reconhece cabeçalho.
 - Sugestões de personagens: **↑/↓** escolhem, **Enter ou Tab** aceita sem criar outro bloco; o Enter seguinte abre a fala. **Esc** fecha. Clique também aceita.
 - **Ctrl/⌘+B, I, U**: marcas de texto; **Ctrl/⌘+Z** desfaz; **Ctrl/⌘+Shift+Z** refaz.

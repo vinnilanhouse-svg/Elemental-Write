@@ -113,6 +113,43 @@ await step("Criar roteiro e escrever com blocos estruturados", async () => {
     .filter({ hasText: /^Salvo neste navegador$/ })
     .waitFor();
 });
+await step("Parênteses automáticos pelo seletor e pelo Tab", async () => {
+  const editor = page.locator(".screenplay");
+  await editor.click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.press("Enter");
+  await page
+    .getByLabel("Tipo do bloco", { exact: true })
+    .selectOption("parenthetical");
+  const last = editor.locator("p").last();
+  assert.equal(await last.innerText(), "()");
+  await page.keyboard.type("sussurrando");
+  assert.equal(await last.innerText(), "(sussurrando)");
+  await page.keyboard.press("Enter");
+  assert.equal(
+    await page.getByLabel("Tipo do bloco", { exact: true }).inputValue(),
+    "dialogue",
+  );
+  await page.keyboard.type("Mais uma chance.");
+  assert.equal(
+    await editor.locator("p[data-kind=parenthetical]").last().innerText(),
+    "(sussurrando)",
+  );
+  await page.keyboard.press("Tab");
+  assert.equal(await last.innerText(), "(Mais uma chance.)");
+  await page.keyboard.press("End");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.type(" Sem perder palavras.");
+  assert.equal(
+    await last.innerText(),
+    "(Mais uma chance. Sem perder palavras.)",
+  );
+  await page.getByRole("button", { name: "Salvar agora", exact: true }).click();
+  await page
+    .locator(".save-state")
+    .filter({ hasText: /^Salvo neste navegador$/ })
+    .waitFor();
+});
 await step(
   "Foco essencial: barra flutuante, painéis recolhíveis e teclado",
   async () => {

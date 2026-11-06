@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { EditorState, TextSelection, type Command } from "prosemirror-state";
-import { undo } from "prosemirror-history";
+import { undo, redo } from "prosemirror-history";
 import {
   schema,
+  setKind,
   editorPlugins,
   enter,
   hardBreak,
@@ -81,6 +82,127 @@ describe("Regras reais do editor ProseMirror", () => {
     expect(e.state.doc.child(0).attrs.kind).toBe("character");
     e.run(cycleKind(-1));
     expect(e.state.doc.child(0).attrs.kind).toBe("action");
+  });
+  it("Insere o par e posiciona o cursor dentro ao selecionar Parênteses", () => {
+    const e = editor("action", "");
+    e.run(setKind("parenthetical"));
+    expect(e.state.doc.child(0).textContent).toBe("()");
+    expect(e.state.selection.from).toBe(2);
+    e.run((state, dispatch) => {
+      dispatch?.(state.tr.insertText("sussurrando"));
+      return true;
+    });
+    expect(e.state.doc.child(0).textContent).toBe("(sussurrando)");
+  });
+  it("Tab e Shift Tab também inserem o par automaticamente", () => {
+    const forward = editor("dialogue", "");
+    forward.run(cycleKind(1));
+    expect(forward.state.doc.child(0).textContent).toBe("()");
+    expect(forward.state.selection.from).toBe(2);
+    const backward = editor("transition", "");
+    backward.run(cycleKind(-1));
+    expect(backward.state.doc.child(0).textContent).toBe("()");
+    expect(backward.state.selection.from).toBe(2);
+  });
+  it.each(["calmamente", "(calmamente)", "(calmamente", "calmamente)"])(
+    "Envolve texto sem duplicar parênteses: %s",
+    (text) => {
+      const e = editor("action", text);
+      e.run(setKind("parenthetical"));
+      e.run(setKind("parenthetical"));
+      expect(e.state.doc.child(0).textContent).toBe("(calmamente)");
+      expect(e.state.selection.$from.parentOffset).toBe("(calmamente".length);
+    },
+  );
+  it("Preserva marcas e quebras ao envolver o conteúdo existente", () => {
+    const content = [
+      schema.text("com calma", [schema.marks.bold.create()]),
+      schema.nodes.hard_break.create(),
+      schema.text("sem pressa", [schema.marks.italic.create()]),
+    ];
+    let state = EditorState.create({
+      schema,
+      doc: schema.nodes.doc.create(null, [
+        schema.nodes.block.create({ kind: "action" }, content),
+      ]),
+      plugins: editorPlugins(),
+    });
+    setKind("parenthetical")(state, (tr) => {
+      state = state.apply(tr);
+    });
+    const paragraph = state.doc.child(0);
+    expect(paragraph.textBetween(0, paragraph.content.size, "", "\n")).toBe(
+      "(com calma\nsem pressa)",
+    );
+    const runs: { text: string; marks: string[] }[] = [];
+    let breaks = 0;
+    paragraph.forEach((node) => {
+      if (node.isText)
+        runs.push({
+          text: node.text!,
+          marks: node.marks.map((mark) => mark.type.name),
+        });
+      if (node.type.name === "hard_break") breaks++;
+    });
+    expect(runs.find((run) => run.text.includes("com calma"))?.marks).toEqual([
+      "bold",
+    ]);
+    expect(runs.find((run) => run.text.includes("sem pressa"))?.marks).toEqual([
+      "italic",
+    ]);
+    expect(breaks).toBe(1);
+  });
+  it("Mantém o cursor no meio do texto existente ao adicionar parênteses", () => {
+    const e = editor("action", "com calma", 5);
+    e.run(setKind("parenthetical"));
+    expect(e.state.selection.from).toBe(6);
+    e.run((state, dispatch) => {
+      dispatch?.(state.tr.insertText("muita "));
+      return true;
+    });
+    expect(e.state.doc.child(0).textContent).toBe("(com muita calma)");
+  });
+  it("Enter depois do texto interno mantém o fechamento e abre a fala", () => {
+    const e = editor("action", "sussurrando");
+    e.run(setKind("parenthetical"));
+    e.run(enter);
+    expect(e.state.doc.child(0).textContent).toBe("(sussurrando)");
+    expect(e.state.doc.child(1).attrs.kind).toBe("dialogue");
+    expect(e.state.selection.$from.parent.attrs.kind).toBe("dialogue");
+    e.run((state, dispatch) => {
+      dispatch?.(state.tr.insertText("Uma fala."));
+      return true;
+    });
+    expect(e.state.doc.child(1).textContent).toBe("Uma fala.");
+  });
+  it("Backspace no par vazio retorna para ação sem deixar parênteses soltos", () => {
+    const e = editor("action", "");
+    e.run(setKind("parenthetical"));
+    e.run(backspaceEmpty);
+    expect(e.state.doc.childCount).toBe(1);
+    expect(e.state.doc.child(0).attrs.kind).toBe("action");
+    expect(e.state.doc.child(0).textContent).toBe("");
+  });
+  it("Trocar o tipo de um par vazio limpa somente o par", () => {
+    const e = editor("action", "");
+    e.run(setKind("parenthetical"));
+    e.run(setKind("character"));
+    expect(e.state.doc.child(0).textContent).toBe("");
+    expect(e.state.doc.child(0).attrs.kind).toBe("character");
+    const filled = editor("action", "com calma");
+    filled.run(setKind("parenthetical"));
+    filled.run(setKind("action"));
+    expect(filled.state.doc.child(0).textContent).toBe("(com calma)");
+  });
+  it("Desfaz e refaz a mudança de tipo e o par em uma operação", () => {
+    const e = editor("action", "com calma");
+    e.run(setKind("parenthetical"));
+    e.run(undo);
+    expect(e.state.doc.child(0).attrs.kind).toBe("action");
+    expect(e.state.doc.child(0).textContent).toBe("com calma");
+    e.run(redo);
+    expect(e.state.doc.child(0).attrs.kind).toBe("parenthetical");
+    expect(e.state.doc.child(0).textContent).toBe("(com calma)");
   });
   for (const prefix of ["INT.", "EXT.", "INT./EXT."])
     it("Reconhece " + prefix, () => {
