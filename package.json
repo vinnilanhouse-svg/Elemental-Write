@@ -10,7 +10,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:browser": "node tests/browser.mjs",
     "format": "prettier --write src tests *.json *.ts *.html README.md",
-    "package:local": "npm run build && node scripts/package-local.mjs"
+    "package:local": "npm run build && node scripts/package-local.mjs",
+    "test:autosave": "node tests/autosave.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.11",

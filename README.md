@@ -28,6 +28,8 @@ npm run test:browser
 
 O teste usa `/usr/bin/chromium` quando disponível, ou o navegador instalado pelo Playwright. `CHROMIUM_PATH` e `BASE_URL` podem ajustar o executável e o endereço **dos testes**, sem serem necessários à aplicação. Usa um contexto de navegador isolado, com dados fictícios. Registra capturas e arquivos em `artifacts/` (ignorado pelo Git).
 
+O teste específico do autosave usa um relógio simulado no Chromium e IndexedDB real. Com o servidor de desenvolvimento na porta 5174, execute `npm run test:autosave` (ou ajuste `BASE_URL`). Ele verifica digitação contínua até os cinco minutos, ciclos posteriores, ausência de gravações sem alterações e limpeza de temporizadores ao fechar o documento.
+
 ## Versão localhost pronta para distribuir
 
 `npm run package:local` gera `releases/Elemental-Write-Local.zip`, com o build, fontes, logo, um servidor Node sem dependências e iniciadores para Windows, macOS e Linux. Extraia o ZIP inteiro, instale Node.js LTS e execute `Iniciar-Windows.bat` no Windows ou `node iniciar.cjs` nos demais sistemas. O iniciador tenta abrir o navegador; o endereço é `http://localhost:5173`. Mantenha o terminal aberto durante o uso. O pacote pronto não precisa de `npm install` nem de internet para executar.
@@ -47,7 +49,7 @@ Um push para `main` aciona o deploy quando a integração Git do projeto está h
 - Vários roteiros e notas por projeto; abrir, renomear, duplicar e excluir documentos.
 - Seis tipos reais de bloco, estilos monoespaçados de 12 pt, papel Carta ou A4, navegação por cenas, lista e sugestões de personagens.
 - Negrito, itálico, sublinhado, busca, zoom, palavras, páginas, numeração, título e autor, folha de rosto opcional no PDF/DOCX e modo foco.
-- Salvamento automático depois de 650 ms sem digitação, na troca de documento, ao ocultar a página e manualmente. O indicador só diz “Salvo neste navegador” após concluir a transação.
+- Salvamento automático a cada 5 minutos enquanto o documento estiver aberto, inclusive durante digitação contínua. Também salva depois de 650 ms sem digitação, na troca de documento, ao ocultar a página e manualmente. Sem alterações pendentes, não faz gravações desnecessárias. O indicador só diz “Salvo neste navegador” após concluir a transação. Abas em segundo plano podem ter seus temporizadores limitados pelo navegador; ao ocultar a página, o aplicativo também tenta salvar imediatamente.
 - Exportação de PDF, DOCX, Fountain, FDX e JSON. Notas também podem ser exportadas como TXT. Backup completo de projetos com roteiros e notas.
 - Importação Fountain/TXT, FDX, DOCX e PDF com texto selecionável, sempre com prévia e revisão dos tipos antes de criar um novo roteiro. Restauração JSON cria um novo projeto.
 - Interface responsiva, temas claro e escuro, diálogos com foco contido e suporte ao teclado.

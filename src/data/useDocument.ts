@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { Manuscript } from "../model";
 import { repository } from "./repository";
+
+export const AUTOSAVE_INTERVAL_MS = 5 * 60 * 1000;
+
 export function useDocument(
   initial: Manuscript,
   onSaved: (doc: Manuscript) => void,
@@ -68,6 +71,10 @@ export function useDocument(
   const flushRef = useRef(flush);
   flushRef.current = flush;
   useEffect(() => {
+    // This interval is independent of typing, which keeps resetting the debounce.
+    const periodicSave = setInterval(() => {
+      void flushRef.current();
+    }, AUTOSAVE_INTERVAL_MS);
     const leave = (e: BeforeUnloadEvent) => {
       if (dirty.current) {
         void flushRef.current();
@@ -81,6 +88,7 @@ export function useDocument(
     window.addEventListener("beforeunload", leave);
     document.addEventListener("visibilitychange", hide);
     return () => {
+      clearInterval(periodicSave);
       clearTimeout(timer.current);
       window.removeEventListener("beforeunload", leave);
       document.removeEventListener("visibilitychange", hide);
