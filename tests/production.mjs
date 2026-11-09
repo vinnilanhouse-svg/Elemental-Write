@@ -48,7 +48,7 @@ try {
         block("dialogue", "Terceira fala."),
         block("action", "Lia sai."),
         block("scene", "EXT. PARQUE — DIA"),
-        block("insert", 'INSERT TEXTO NA TELA: "AMANHÃ"'),
+        block("insert", 'INSERT "AMANHÃ"'),
         block("shot", "VOICE OVER (VO) — A cidade acordou."),
         block("scene", "INT. QUARTO — NOITE"),
         block("action", "O relógio toca."),
@@ -357,6 +357,17 @@ try {
     "PASS espelho por fala, cenas repetidas, VO, lettering, edição independente, atualização sem perda e exportação",
   );
 
+  // Existing saved mirrors must adopt Insert → Lettering on opening, without a manual refresh.
+  await page.evaluate(async ({ projectId, docId }) => {
+    const { repository: r } = await import("/src/data/repository.ts");
+    const d = (await r.documents(projectId)).find((d) => d.id === docId);
+    delete d.mirror.mappingVersion;
+    const row = d.mirror.rows[2];
+    row.lettering = row.base.lettering = "";
+    row.description = row.base.description =
+      'EXT. PARQUE — DIA\nINSERT "AMANHÃ"';
+    await r.saveDocument(d, d.revision);
+  }, seeded);
   await page.reload();
   await openProject();
   await openMirror("Filme principal");
@@ -366,6 +377,13 @@ try {
   await expect(
     page.getByLabel("Lettering · linha 2", { exact: true }),
   ).toHaveValue("TEXTO AJUSTADO");
+  await expect(
+    page.getByLabel("Lettering · linha 3", { exact: true }),
+  ).toHaveValue("AMANHÃ");
+  await expect(
+    page.getByLabel("Descrição de cena · linha 3", { exact: true }),
+  ).not.toHaveValue(/INSERT/);
+  await saved();
   const backupCheck = await page.evaluate(async ({ projectId, docId }) => {
     const { repository: r } = await import("/src/data/repository.ts");
     const { backup, parseBackup } = await import("/src/io/backup.ts");

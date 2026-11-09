@@ -66,8 +66,59 @@ describe("Espelho de cinco colunas", () => {
     expect(rows[1].lettering).toBe("TRÊS ANOS DEPOIS");
     expect(rows[2].description).toContain("A porta se fecha.");
     expect(rows[3].description).toContain("FADE OUT.");
-    expect(rows[3].description).toContain("INSERT UMA CONCHA.");
-    expect(rows[3].lettering).toBe("");
+    expect(rows[3].description).not.toContain("INSERT UMA CONCHA.");
+    expect(rows[3].lettering).toBe("UMA CONCHA.");
+  });
+  it("Todo Insert preenche Lettering, preserva quebras e não vira descrição de cena", () => {
+    const rows = generateRows({
+      type: "doc",
+      content: [
+        block("scene", "INT. CASA — DIA"),
+        block("insert", "INSERT — Primeiro texto"),
+        {
+          type: "block",
+          attrs: { kind: "insert" },
+          content: [
+            { type: "text", text: "INSERT TEXTO EM DUAS" },
+            { type: "hard_break" },
+            { type: "text", text: "LINHAS" },
+          ],
+        },
+        block("insert", "INSERT"),
+        block("character", "LIA"),
+        block("dialogue", "Uma fala."),
+        block("insert", 'INSERT: "Texto ao final"'),
+        block("scene", "EXT. RUA — DIA"),
+        block("insert", "Texto sem prefixo"),
+        block("action", "INSERT é apenas uma palavra nesta ação."),
+      ],
+    });
+    expect(rows[0].lettering).toBe(
+      "Primeiro texto\nTEXTO EM DUAS\nLINHAS\nTexto ao final",
+    );
+    expect(rows[0].description).toBe("INT. CASA — DIA");
+    expect(rows[1].lettering).toBe("Texto sem prefixo");
+    expect(rows[1].description).toContain(
+      "INSERT é apenas uma palavra nesta ação.",
+    );
+  });
+  it("Atualiza o mapeamento antigo do espelho sem perder ajustes manuais", () => {
+    const d = example();
+    const old = createMirror(d);
+    delete old.mappingVersion;
+    const row = old.rows[3];
+    row.lettering = row.base!.lettering = "";
+    row.description = row.base!.description =
+      "EXT. PRAIA — NOITE\nINSERT UMA CONCHA.\nFADE OUT.";
+    old.rows[0].lettering = "Meu ajuste";
+    old.fields.productionNotes = "Observação preservada";
+    const updated = updateMirror(old, d);
+    expect(updated.mappingVersion).toBe(2);
+    expect(updated.rows[3].lettering).toBe("UMA CONCHA.");
+    expect(updated.rows[3].description).toBe("EXT. PRAIA — NOITE\nFADE OUT.");
+    expect(updated.rows[0].lettering).toBe("Meu ajuste");
+    expect(updated.fields.productionNotes).toBe("Observação preservada");
+    expect(validateMirror(old)).toBe(true);
   });
   it("Conserva cenas sem falas e trechos sem cabeçalho, sem inventar texto falado", () => {
     const doc: ScriptDoc = {

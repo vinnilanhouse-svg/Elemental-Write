@@ -28,6 +28,7 @@ export type MirrorRow = MirrorCells & {
 };
 export type MirrorData = {
   version: 1;
+  mappingVersion?: 2;
   sourceHash: string;
   fields: MirrorFields;
   baseFields: MirrorFields;
@@ -177,6 +178,17 @@ export function generateRows(doc: ScriptDoc): MirrorRow[] {
       emit(text, pendingVO);
       continue;
     }
+    if (block.attrs.kind === "insert") {
+      const content = text
+        .replace(/^INSERT\b\s*[:—-]?\s*/i, "")
+        .replace(
+          /^(?:LETTERING|TEXTO NA TELA|LETREIRO|GC|SUPER|LEGENDA|TÍTULO NA TELA)\s*[:—-]\s*/i,
+          "",
+        );
+      const caption = unwrap(content);
+      if (caption) lettering.push(caption);
+      continue;
+    }
     if (
       block.attrs.kind === "shot" &&
       /^(?:VOICE OVER(?:\s*\(VO\))?|VO)(?:\s*[—:-]|$)/i.test(text)
@@ -190,11 +202,11 @@ export function generateRows(doc: ScriptDoc): MirrorRow[] {
       } else pendingVO = true;
       continue;
     }
-    const visual = ["shot", "insert", "transition"].includes(block.attrs.kind)
+    const visual = ["shot", "transition"].includes(block.attrs.kind)
       ? text.toLocaleUpperCase("pt-BR")
       : text;
     directions.push(visual);
-    // A visual INSERT is not necessarily lettering: only extract explicit screen text.
+    // Other block types still require an explicit screen-text marker.
     const screenText = text.match(
       /(?:^|\n|^INSERT\s*[—:-]?\s*)(?:LETTERING|TEXTO NA TELA|LETREIRO|GC|SUPER|LEGENDA|TÍTULO NA TELA)\s*[:—-]\s*([\s\S]+)/i,
     );
@@ -217,6 +229,7 @@ export function createMirror(d: Manuscript, fallbackWriter = ""): MirrorData {
   };
   return {
     version: 1,
+    mappingVersion: 2,
     sourceHash: mirrorSourceHash(d),
     fields,
     baseFields: { ...fields },
@@ -294,6 +307,7 @@ export function validateMirror(value: unknown): value is MirrorData {
   const m = value as MirrorData;
   return (
     m.version === 1 &&
+    (m.mappingVersion === undefined || m.mappingVersion === 2) &&
     typeof m.sourceHash === "string" &&
     Number.isFinite(m.generatedAt) &&
     recordOfStrings(m.fields, Object.keys(fieldLabels)) &&

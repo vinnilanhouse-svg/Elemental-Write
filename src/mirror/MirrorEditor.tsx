@@ -70,7 +70,9 @@ export function MirrorEditor({
   const data = manuscript.mirror || generated;
   useEffect(() => {
     if (!manuscript.mirror) onChange(generated);
-  }, [manuscript.mirror, generated, onChange]);
+    else if (manuscript.mirror.mappingVersion !== 2)
+      onChange(updateMirror(manuscript.mirror, manuscript, fallbackWriter));
+  }, [manuscript.mirror, manuscript, generated, fallbackWriter, onChange]);
   const stale = data.sourceHash !== mirrorSourceHash(manuscript);
   const review = data.rows.filter((r) => r.review).length;
   const setField = (key: keyof MirrorFields, value: string) =>
@@ -156,8 +158,8 @@ export function MirrorEditor({
           </label>
           <p className="mirror-hint">
             Uma linha por fala. A cena se repete em cada linha; todos os campos
-            podem ser ajustados. Lettering reconhece textos marcados como
-            “LETTERING:” ou “TEXTO NA TELA:”.
+            podem ser ajustados. Os blocos Insert preenchem Lettering
+            automaticamente.
           </p>
           <div
             className="mirror-table-scroll"
