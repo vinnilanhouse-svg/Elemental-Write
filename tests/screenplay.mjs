@@ -117,14 +117,20 @@ try {
   await page.keyboard.press("Control+End");
   await expect(type).toHaveValue("action");
   await type.selectOption("shot");
-  const chooser = page.getByRole("dialog", { name: "Escolha um plano" });
-  await expect(chooser.locator(".shot-card")).toHaveCount(9);
+  const chooser = page.getByRole("listbox", { name: "Planos", exact: true });
+  await expect(chooser.getByRole("option")).toHaveCount(9);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.screenshot({ path: "artifacts/lista-planos.png" });
   await page.keyboard.press("Escape");
   await expect(type).toHaveValue("action");
   assert.equal((await editor.locator("p").last().innerText()).trim(), "");
   await type.selectOption("shot");
+  await page.getByRole("button", { name: "Salvar agora", exact: true }).click();
+  await expect(chooser).toHaveCount(0);
+  await expect(type).toHaveValue("action");
+  await type.selectOption("shot");
   await page
-    .getByRole("button", { name: "Usar plano médio", exact: true })
+    .getByRole("option", { name: "PM Plano médio", exact: true })
     .click();
   await expect(type).toHaveValue("shot");
   await page.keyboard.type("Lia segura a carta.");
@@ -132,8 +138,23 @@ try {
     "PLANO MÉDIO — Lia segura a carta.",
   );
   await page
+    .getByRole("button", { name: "Escolher plano", exact: true })
+    .click();
+  await expect(
+    chooser.getByRole("option", { name: "PM Plano médio", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(chooser).toHaveCount(0);
+  await expect(editor.locator("p").last()).toHaveText(
+    "PRIMEIRO PLANO — Lia segura a carta.",
+  );
+  await page
     .getByRole("button", { name: "Guia de planos", exact: true })
     .click();
+  await page
+    .getByRole("dialog", { name: "Guia de planos", exact: true })
+    .waitFor();
   await page
     .getByRole("button", { name: "Usar primeiro plano", exact: true })
     .click();
@@ -148,6 +169,14 @@ try {
   await expect(editor.locator("p").last()).toHaveText(
     "INSERT O relógio marca meia-noite.",
   );
+  await page.keyboard.press("Shift+Tab");
+  await chooser.waitFor();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(type).toHaveValue("insert");
+  await expect(editor.locator("p").last()).toHaveText(
+    "INSERT O relógio marca meia-noite.",
+  );
   await page.keyboard.press("Enter");
   await expect(type).toHaveValue("action");
   // Keyboard access to the shot picker also waits for a choice before changing the block.
@@ -155,14 +184,14 @@ try {
   await page.keyboard.press("Tab");
   await chooser.waitFor();
   await page
-    .getByRole("button", { name: "Usar plano detalhe", exact: true })
+    .getByRole("option", { name: "PD Plano detalhe", exact: true })
     .click();
   await expect(editor.locator("p").last()).toHaveText("PLANO DETALHE — ");
   await page.keyboard.type("A chave na mesa.");
   await page.keyboard.press("Enter");
   await type.selectOption("shot");
   await page
-    .getByRole("button", { name: "Usar voice over (vo)", exact: true })
+    .getByRole("option", { name: "VO Voice Over (VO)", exact: true })
     .click();
   await expect(type).toHaveValue("shot");
   await page.keyboard.type("Uma lembrança distante.");
@@ -295,6 +324,27 @@ try {
       await page.screenshot({ path: "artifacts/guia-planos-mobile.png" });
       await page.keyboard.press("Escape");
     }
+    await type.selectOption("shot");
+    await chooser.waitFor();
+    const listBounds = await chooser.boundingBox();
+    assert.ok(
+      listBounds.x >= 0 &&
+        listBounds.y >= 0 &&
+        listBounds.x + listBounds.width <= width &&
+        listBounds.y + listBounds.height <= 1000,
+      `Lista de planos dentro da tela em ${width}px`,
+    );
+    assert.equal(
+      await page
+        .locator(".editor-toolbar")
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+      true,
+      `Barra com seletor de plano em ${width}px`,
+    );
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    if (width === 390)
+      await page.screenshot({ path: "artifacts/lista-planos-mobile.png" });
+    await page.keyboard.press("Escape");
   }
   console.log("PASS guia ilustrado e controles responsivos de 320 a 1440px");
   await page.setViewportSize({ width: 1440, height: 1000 });

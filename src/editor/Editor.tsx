@@ -15,7 +15,7 @@ import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
 import { undo, redo } from "prosemirror-history";
 import { toggleMark } from "prosemirror-commands";
 import { schema, editorPlugins, setKind, setShot } from "./schema";
-import type { ShotId } from "../shots";
+import { shots, shotPrefix, type ShotId } from "../shots";
 import {
   characters,
   kinds,
@@ -30,6 +30,7 @@ export type EditorHandle = {
   command: (name: string) => void;
   kind: (kind: Kind) => void;
   shot: (id: ShotId) => void;
+  currentShot: () => ShotId | null;
   scene: (index: number) => void;
   search: (query: string) => number;
   nextMatch: () => void;
@@ -367,6 +368,20 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
             setShot(id)(v.state, v.dispatch);
             v.focus();
           }
+        },
+        currentShot() {
+          const node = viewRef.current?.state.selection.$from.parent;
+          if (node?.attrs.kind !== "shot") return null;
+          const prefix = shotPrefix(node.textContent).toLocaleUpperCase(
+            "pt-BR",
+          );
+          return (
+            shots.find(
+              (shot) =>
+                prefix.startsWith(shot.name.toLocaleUpperCase("pt-BR")) ||
+                (shot.id === "vo" && /^(?:VO|VOICE OVER)\b/.test(prefix)),
+            )?.id || null
+          );
         },
         scene(index) {
           const v = viewRef.current;

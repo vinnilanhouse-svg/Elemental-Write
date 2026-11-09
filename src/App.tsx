@@ -66,6 +66,8 @@ import {
 import { ScreenplayEditor, type EditorHandle } from "./editor/Editor";
 import { geometry } from "./editor/layout";
 import { ShotLibrary } from "./ShotLibrary";
+import { ShotDropdown } from "./ShotDropdown";
+import type { ShotId } from "./shots";
 import { MirrorEditor } from "./mirror/MirrorEditor";
 import { createMirror } from "./mirror/model";
 import { mirrorPDF, mirrorCSV } from "./mirror/export";
@@ -1339,6 +1341,7 @@ function Workspace({
     onSaved,
   );
   const editor = useRef<EditorHandle>(null);
+  const blockControl = useRef<HTMLDivElement>(null);
   const [kind, setKind] = useState<Kind>(initial.doc.content[0].attrs.kind),
     [pages, setPages] = useState(1),
     [zoom, setZoom] = useState(125),
@@ -1349,9 +1352,15 @@ function Workspace({
     [outline, setOutline] = useState(false),
     [focus, setFocus] = useState(false),
     [highlighted, setHighlighted] = useState(false),
-    [shotLibrary, setShotLibrary] = useState<"choose" | "guide" | null>(null),
+    [shotLibrary, setShotLibrary] = useState(false),
+    [shotMenu, setShotMenu] = useState(false),
     [exporting, setExporting] = useState("");
   const flushRef = useRef(flush);
+  const applyShot = (id: ShotId) => {
+    setShotMenu(false);
+    setShotLibrary(false);
+    requestAnimationFrame(() => editor.current?.shot(id));
+  };
   flushRef.current = flush;
   useEffect(() => {
     beforeNavigate.current = () => flushRef.current();
@@ -1603,22 +1612,41 @@ function Workspace({
       <div className="editor-toolbar">
         {value.kind === "script" ? (
           <>
-            <select
-              aria-label="Tipo do bloco"
-              value={kind}
-              title={labels[kind]}
-              onChange={(e) => {
-                const next = e.target.value as Kind;
-                if (next === "shot") setShotLibrary("choose");
-                else editor.current?.kind(next);
-              }}
-            >
-              {kinds.map((k) => (
-                <option key={k} value={k}>
-                  {k === "scene" ? "Cena" : labels[k]}
-                </option>
-              ))}
-            </select>
+            <div className="block-type-control" ref={blockControl}>
+              <select
+                aria-label="Tipo do bloco"
+                value={shotMenu ? "shot" : kind}
+                title={labels[shotMenu ? "shot" : kind]}
+                onChange={(e) => {
+                  const next = e.target.value as Kind;
+                  if (next === "shot") setShotMenu(true);
+                  else {
+                    setShotMenu(false);
+                    editor.current?.kind(next);
+                  }
+                }}
+              >
+                {kinds.map((k) => (
+                  <option key={k} value={k}>
+                    {k === "scene" ? "Cena" : labels[k]}
+                  </option>
+                ))}
+              </select>
+              {(kind === "shot" || shotMenu) && (
+                <button
+                  className="shot-picker-trigger"
+                  aria-label="Escolher plano"
+                  title="Escolher ou alterar plano"
+                  aria-haspopup="listbox"
+                  aria-expanded={shotMenu}
+                  aria-controls={shotMenu ? "shot-options" : undefined}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setShotMenu(!shotMenu)}
+                >
+                  <ChevronDown size={13} />
+                </button>
+              )}
+            </div>
             <span className="toolbar-divider" />
             {(
               [
@@ -1670,14 +1698,11 @@ function Workspace({
             <button
               className="icon-button"
               aria-label="Guia de planos"
-              title={
-                kind === "shot"
-                  ? "Guia de planos · alterar enquadramento"
-                  : "Guia de planos"
-              }
-              onClick={() =>
-                setShotLibrary(kind === "shot" ? "choose" : "guide")
-              }
+              title="Guia de planos"
+              onClick={() => {
+                setShotMenu(false);
+                setShotLibrary(true);
+              }}
             >
               <Camera size={17} />
             </button>
@@ -1851,7 +1876,7 @@ function Workspace({
                   onKind={setKind}
                   onPages={setPages}
                   onHighlightChange={setHighlighted}
-                  onShotRequest={() => setShotLibrary("choose")}
+                  onShotRequest={() => setShotMenu(true)}
                 />
                 <div className="paper-end">
                   {Array.from({ length: 3 }, (_, i) => (
@@ -1917,15 +1942,20 @@ function Workspace({
           )}
         </div>
       </footer>
-      {shotLibrary && (
-        <ShotLibrary
-          choose={shotLibrary === "choose"}
-          close={() => setShotLibrary(null)}
-          onChoose={(id) => {
-            setShotLibrary(null);
-            requestAnimationFrame(() => editor.current?.shot(id));
+      {shotMenu && !mirrorOpen && (
+        <ShotDropdown
+          anchor={blockControl.current}
+          selected={editor.current?.currentShot() || null}
+          choose={applyShot}
+          close={(restoreEditor) => {
+            setShotMenu(false);
+            if (restoreEditor)
+              requestAnimationFrame(() => editor.current?.focus());
           }}
         />
+      )}
+      {shotLibrary && (
+        <ShotLibrary close={() => setShotLibrary(false)} onChoose={applyShot} />
       )}
       {settings && (
         <Modal title="Página e folha de rosto" close={() => setSettings(false)}>

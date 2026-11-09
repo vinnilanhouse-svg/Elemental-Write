@@ -4,24 +4,17 @@ import { Modal } from "./ui";
 import { shots, type ShotId } from "./shots";
 
 export function ShotLibrary({
-  choose,
   close,
   onChoose,
 }: {
-  choose: boolean;
   close: () => void;
   onChoose: (id: ShotId) => void;
 }) {
   return (
-    <Modal
-      title={choose ? "Escolha um plano" : "Guia de planos"}
-      close={close}
-      wide
-    >
+    <Modal title="Guia de planos" close={close} wide>
       <p className="muted">
-        {choose
-          ? "Escolha o enquadramento ou Voice Over para este bloco. Depois, escreva a descrição."
-          : "Uma referência rápida de enquadramentos e narração. Você também pode aplicar uma opção ao bloco atual."}
+        Uma referência rápida de enquadramentos e narração. Você também pode
+        aplicar uma opção ao bloco atual.
       </p>
       <div className="shot-grid">
         {shots.map((shot, index) => {
