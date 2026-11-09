@@ -45,6 +45,7 @@ import {
   Minus,
   Camera,
   Table2,
+  Shapes,
 } from "lucide-react";
 import { Logo, Modal, Drawer, Field, Help } from "./ui";
 import { repository } from "./data/repository";
@@ -70,6 +71,9 @@ import { createMirror } from "./mirror/model";
 import { mirrorPDF, mirrorCSV } from "./mirror/export";
 import { CoverEditor } from "./cover/CoverEditor";
 import type { CoverTemplate } from "./cover/model";
+import { IconPicker } from "./projects/IconPicker";
+import { ProjectIcon } from "./projects/ProjectIcon";
+import type { ProjectIconId } from "./projects/icons";
 import { backup, parseBackup, type Backup } from "./io/backup";
 import {
   download,
@@ -129,6 +133,7 @@ export default function App() {
     project: Project;
     documents: Manuscript[];
   } | null>(null);
+  const [iconEdit, setIconEdit] = useState<Project | null>(null);
   const beforeNavigate = useRef<() => Promise<boolean>>(async () => true);
   const refresh = async (p: Profile) =>
     setProjects(await repository.projects(p.id));
@@ -283,6 +288,22 @@ export default function App() {
         await refresh(profile!);
       },
     });
+  const editIcon = (p: Project) =>
+    safe(async () => {
+      const fresh = (await repository.projects(p.profileId)).find(
+        (v) => v.id === p.id,
+      );
+      if (!fresh) throw Error("O projeto foi removido.");
+      setIconEdit(fresh);
+      setNavigationOpen(false);
+    });
+  const saveIcon = async (icon: ProjectIconId) => {
+    if (!iconEdit) return;
+    const saved = await repository.saveProjectIcon(iconEdit.id, icon);
+    if (project?.id === saved.id) setProject(saved);
+    await refresh(profile!);
+    setIconEdit(null);
+  };
   const editCover = (p: Project) =>
     safe(async () => {
       if (!(await beforeNavigate.current())) return;
@@ -505,6 +526,17 @@ export default function App() {
                     <MoreHorizontal size={18} />
                   </summary>
                   <div className="menu-pop">
+                    <button
+                      onClick={(e) => {
+                        e.currentTarget
+                          .closest("details")
+                          ?.removeAttribute("open");
+                        void editIcon(project);
+                      }}
+                    >
+                      <Shapes size={15} />
+                      Escolher ícone
+                    </button>
                     <button
                       onClick={(e) => {
                         e.currentTarget
@@ -779,7 +811,7 @@ export default function App() {
                             <span className="cover-number">
                               {String(i + 1).padStart(2, "0")}
                             </span>
-                            <Clapperboard size={38} strokeWidth={1} />
+                            <ProjectIcon name={p.icon} />
                             <span className="cover-label">
                               {p.demo
                                 ? "PROJETO DE DEMONSTRAÇÃO"
@@ -807,6 +839,17 @@ export default function App() {
                             <MoreHorizontal size={19} />
                           </summary>
                           <div className="menu-pop">
+                            <button
+                              onClick={(e) => {
+                                e.currentTarget
+                                  .closest("details")
+                                  ?.removeAttribute("open");
+                                void editIcon(p);
+                              }}
+                            >
+                              <Shapes size={15} />
+                              Escolher ícone
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.currentTarget
@@ -924,6 +967,13 @@ export default function App() {
           if (f) void importFile(f);
         }}
       />
+      {iconEdit && (
+        <IconPicker
+          project={iconEdit}
+          save={saveIcon}
+          close={() => setIconEdit(null)}
+        />
+      )}
       {coverEdit && (
         <CoverEditor
           project={coverEdit.project}

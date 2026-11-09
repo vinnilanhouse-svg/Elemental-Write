@@ -26,6 +26,7 @@ npx playwright install chromium  # se não houver Chromium do sistema
 npm run test:browser
 npm run test:screenplay  # planos, Insert, números de cena e responsividade
 npm run test:production # espelho, capa editável e PDFs de produção
+npm run test:icons      # seleção de ícones por projeto e responsividade
 ```
 
 O teste usa `/usr/bin/chromium` quando disponível, ou o navegador instalado pelo Playwright. `CHROMIUM_PATH` e `BASE_URL` podem ajustar o executável e o endereço **dos testes**, sem serem necessários à aplicação. Usa um contexto de navegador isolado, com dados fictícios. Registra capturas e arquivos em `artifacts/` (ignorado pelo Git).
@@ -48,6 +49,7 @@ Um push para `main` aciona o deploy quando a integração Git do projeto está h
 
 - Perfis locais separados, perfil ativo restaurado e preferência de tema por perfil.
 - Projetos com título, descrição e datas; criação, edição e exclusão confirmada.
+- Ícones dos cartões personalizáveis por projeto: nos três pontinhos, use **Escolher ícone** para ver 20 opções, conferir a prévia e salvar. A escolha é mantida ao recarregar e no backup JSON; projetos antigos continuam com a claquete até você escolher outro ícone.
 - Vários roteiros e notas por projeto; abrir, renomear, duplicar e excluir documentos.
 - Oito tipos reais de bloco, incluindo Plano e Insert, estilos monoespaçados de 12 pt, papel Carta ou A4, navegação por cenas, lista e sugestões de personagens.
 - Negrito, itálico, sublinhado, marca-texto amarelo, busca, zoom, palavras, contador de páginas visível no canto inferior direito, numeração, título e autor, capa automática no PDF, folha de rosto opcional no DOCX e modo foco.

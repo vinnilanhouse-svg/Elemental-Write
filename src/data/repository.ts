@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { CoverTemplate } from "../cover/model";
+import { isProjectIconId, type ProjectIconId } from "../projects/icons";
 import {
   block,
   id,
@@ -31,6 +32,7 @@ export interface Repository {
     description: string,
   ): Promise<void>;
   deleteProject(projectId: string): Promise<void>;
+  saveProjectIcon(projectId: string, icon: ProjectIconId): Promise<Project>;
   saveProjectCover(
     projectId: string,
     cover: CoverTemplate,
@@ -148,6 +150,17 @@ export class LocalRepository extends Dexie implements Repository {
       title,
       description,
       updatedAt: Date.now(),
+    });
+  }
+  async saveProjectIcon(projectId: string, icon: ProjectIconId) {
+    if (!isProjectIconId(icon)) throw Error("Escolha um ícone válido.");
+    return this.transaction("rw", this.folders, async () => {
+      const current = await this.folders.get(projectId);
+      if (!current) throw Error("O projeto foi removido.");
+      if ((current.icon || "clapperboard") === icon) return current;
+      const saved = { ...current, icon, updatedAt: Date.now() };
+      await this.folders.put(saved);
+      return saved;
     });
   }
   async saveProjectCover(

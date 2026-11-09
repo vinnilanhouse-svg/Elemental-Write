@@ -1,5 +1,6 @@
 import type { MirrorData } from "./mirror/model";
 import type { CoverTemplate } from "./cover/model";
+import type { ProjectIconId } from "./projects/icons";
 export const kinds = [
   "scene",
   "action",
@@ -43,6 +44,7 @@ export type Project = {
   updatedAt: number;
   demo?: boolean;
   cover?: CoverTemplate;
+  icon?: ProjectIconId;
 };
 export type Manuscript = {
   id: string;

@@ -1,6 +1,7 @@
 import { kinds, type Project, type Manuscript, type ScriptDoc } from "../model";
 import { validateMirror } from "../mirror/model";
 import { validateCover } from "../cover/model";
+import { isProjectIconId } from "../projects/icons";
 export type Backup = {
   format: "elemental-write";
   version: 1;
@@ -63,7 +64,8 @@ export function parseBackup(raw: string): Backup {
     !p.title.trim() ||
     typeof p.description !== "string" ||
     !Array.isArray(b.documents) ||
-    (p.cover !== undefined && !validateCover(p.cover))
+    (p.cover !== undefined && !validateCover(p.cover)) ||
+    (p.icon !== undefined && !isProjectIconId(p.icon))
   )
     throw Error("O backup não contém um projeto válido.");
   if (

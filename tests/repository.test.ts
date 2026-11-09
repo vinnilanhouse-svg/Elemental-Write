@@ -6,6 +6,45 @@ import { backup, parseBackup } from "../src/io/backup";
 import { defaultCover } from "../src/cover/model";
 const db = () => new LocalRepository("test-" + crypto.randomUUID());
 describe("Persistência IndexedDB e backup", () => {
+  it("Ícone persiste por projeto e no backup sem alterar capa, nome ou outros projetos", async () => {
+    const r = db();
+    const p = await r.createProject("ana", "Garagem");
+    const other = await r.createProject("ana", "Institucionais");
+    const cover = defaultCover();
+    await r.saveProjectCover(p.id, cover);
+    await r.renameProject(p, "Papo de Garagem", "Uma conversa.");
+    const saved = await r.saveProjectIcon(p.id, "car");
+    expect(saved.title).toBe("Papo de Garagem");
+    expect(saved.description).toBe("Uma conversa.");
+    expect(saved.cover).toEqual(cover);
+    expect(saved.icon).toBe("car");
+    expect(
+      (await r.projects("ana")).find((v) => v.id === other.id)?.icon,
+    ).toBeUndefined();
+    r.close();
+    await r.open();
+    expect((await r.projects("ana")).find((v) => v.id === p.id)?.icon).toBe(
+      "car",
+    );
+    const parsed = parseBackup(JSON.stringify(backup(saved, [])));
+    const restored = await r.restore("bruno", parsed.project, parsed.documents);
+    expect(restored.icon).toBe("car");
+    expect(restored.cover).toEqual(cover);
+    await expect(r.saveProjectIcon(p.id, "invalid" as never)).rejects.toThrow(
+      "ícone válido",
+    );
+    expect(() =>
+      parseBackup(
+        JSON.stringify({
+          ...parsed,
+          project: { ...parsed.project, icon: "invalid" },
+        }),
+      ),
+    ).toThrow("projeto válido");
+    await r.deleteProject(p.id);
+    await expect(r.saveProjectIcon(p.id, "music")).rejects.toThrow("removido");
+    await r.delete();
+  });
   it("Capa pertence ao projeto, persiste no backup e rejeita edições concorrentes", async () => {
     const r = db();
     const p = await r.createProject("ana", "Institucionais");
