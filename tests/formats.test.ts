@@ -8,6 +8,27 @@ import {
   fdxExport,
 } from "../src/io/formats";
 describe("Formatos de intercâmbio", () => {
+  it("Plano e Insert preservam tipos e texto em Fountain e estilos válidos em FDX/DOCX", async () => {
+    const d = makeManuscript("p", "Planos");
+    d.doc = {
+      type: "doc",
+      content: [
+        block("shot", "PLANO MÉDIO — LIA OBSERVA."),
+        block("insert", "INSERT UM RELÓGIO."),
+        block("shot", "VOICE OVER (VO) — ERA UMA VEZ."),
+      ],
+    };
+    expect(parseFountain(fountainExport(d)).doc).toEqual(d.doc);
+    expect(fdxExport(d).match(/Type="Shot"/g)).toHaveLength(3);
+    expect(fdxExport(d)).not.toContain('Type="Insert"');
+    const zip = await JSZip.loadAsync(
+      await (await docxExport(d)).arrayBuffer(),
+    );
+    const xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain('w:pStyle w:val="shot"');
+    expect(xml).toContain('w:pStyle w:val="insert"');
+    expect(xml).toContain("INSERT UM RELÓGIO.");
+  });
   it("Fountain preserva parênteses com marcas sem duplicar os sinais", () => {
     const d = makeManuscript("p", "Teste");
     d.doc = {

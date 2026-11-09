@@ -5,6 +5,8 @@ export const kinds = [
   "dialogue",
   "parenthetical",
   "transition",
+  "shot",
+  "insert",
 ] as const;
 export type Kind = (typeof kinds)[number];
 export const labels: Record<Kind, string> = {
@@ -14,6 +16,8 @@ export const labels: Record<Kind, string> = {
   dialogue: "Diálogo",
   parenthetical: "Parênteses",
   transition: "Transição",
+  shot: "Plano",
+  insert: "Insert",
 };
 export type Mark = { type: "bold" | "italic" | "underline" | "highlight" };
 export type Span =
@@ -88,9 +92,11 @@ export const nextKind: Record<Kind, Kind> = {
   dialogue: "character",
   parenthetical: "dialogue",
   transition: "scene",
+  shot: "action",
+  insert: "action",
 };
 export const uppercase = (k: Kind) =>
-  ["scene", "character", "transition"].includes(k);
+  ["scene", "character", "transition", "shot", "insert"].includes(k);
 export const normalizeKind = (kind: Kind, text: string): Kind =>
   kind === "action" && /^(INT\.?\/EXT\.|INT\.|EXT\.)\s/i.test(text)
     ? "scene"

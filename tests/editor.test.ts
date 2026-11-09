@@ -10,7 +10,9 @@ import {
   hardBreak,
   backspaceEmpty,
   cycleKind,
+  setShot,
 } from "../src/editor/schema";
+import { sceneNumberDecorations } from "../src/editor/sceneNumbers";
 import {
   block,
   kinds,
@@ -41,6 +43,125 @@ function editor(kind: Kind, text: string, pos?: number) {
   };
 }
 describe("Regras reais do editor ProseMirror", () => {
+  it("Insert adiciona o prefixo uma vez, posiciona o cursor e preserva o histórico", () => {
+    const e = editor("action", "");
+    e.run(setKind("insert"));
+    expect(e.state.doc.textContent).toBe("INSERT ");
+    expect(e.state.selection.from).toBe(8);
+    e.run(undo);
+    expect(e.state.doc.textContent).toBe("");
+    expect(e.state.doc.child(0).attrs.kind).toBe("action");
+    e.run(redo);
+    e.run(setKind("insert"));
+    expect(e.state.doc.textContent).toBe("INSERT ");
+    const existing = editor("action", "insert: UM RELÓGIO");
+    existing.run(setKind("insert"));
+    expect(existing.state.doc.textContent).toBe("INSERT UM RELÓGIO");
+  });
+  it("Troca de enquadramento e Insert preserva descrição, marcas e quebras", () => {
+    let state = EditorState.create({
+      schema,
+      doc: schema.nodes.doc.create(null, [
+        schema.nodes.block.create({ kind: "action" }, [
+          schema.text("Lia observa.", [
+            schema.marks.highlight.create(),
+            schema.marks.bold.create(),
+          ]),
+          schema.nodes.hard_break.create(),
+          schema.text("Um detalhe."),
+        ]),
+      ]),
+      plugins: editorPlugins(),
+    });
+    const run = (command: Command) =>
+      command(state, (tr) => {
+        state = state.apply(tr);
+      });
+    run(setShot("pm"));
+    expect(state.doc.firstChild!.textContent).toBe(
+      "PLANO MÉDIO — Lia observa.Um detalhe.",
+    );
+    run(setShot("pd"));
+    expect(state.doc.firstChild!.textContent).toBe(
+      "PLANO DETALHE — Lia observa.Um detalhe.",
+    );
+    run(setKind("insert"));
+    expect(state.doc.firstChild!.textContent).toBe(
+      "INSERT Lia observa.Um detalhe.",
+    );
+    run(setShot("pg"));
+    const content = state.doc.firstChild!.toJSON().content;
+    expect(content[0].text).toBe("PLANO GERAL — ");
+    expect(content[1]).toEqual({
+      type: "text",
+      text: "Lia observa.",
+      marks: [{ type: "bold" }, { type: "highlight" }],
+    });
+    expect(content[2].type).toBe("hard_break");
+  });
+  it("Numera cabeçalhos pela ordem, renumera mudanças e não modifica o texto salvo", () => {
+    let state = EditorState.create({
+      schema,
+      doc: schema.nodeFromJSON({
+        type: "doc",
+        content: [
+          block("scene", "INT. CASA - DIA"),
+          block("action", "Uma ação."),
+          block("scene", "EXT. RUA - DIA"),
+        ],
+      }),
+      plugins: editorPlugins(),
+    });
+    const numbers = () =>
+      sceneNumberDecorations(state.doc)
+        .find()
+        .filter((d) => d.spec.key)
+        .map((d) => d.spec.key);
+    expect(numbers()).toEqual(["scene-1", "scene-2"]);
+    const original = state.doc.toJSON();
+    state = state.apply(
+      state.tr.setNodeMarkup(state.doc.child(0).nodeSize, undefined, {
+        kind: "scene",
+      }),
+    );
+    expect(numbers()).toEqual(["scene-1", "scene-2", "scene-3"]);
+    undo(state, (tr) => {
+      state = state.apply(tr);
+    });
+    expect(numbers()).toEqual(["scene-1", "scene-2"]);
+    expect(state.doc.toJSON()).toEqual(original);
+    state = state.apply(state.tr.delete(0, state.doc.child(0).nodeSize));
+    expect(numbers()).toEqual(["scene-1"]);
+    expect(
+      sceneNumberDecorations(
+        schema.nodeFromJSON({
+          type: "doc",
+          content: [block("scene", "Nova cena")],
+        }),
+      )
+        .find()
+        .filter((d) => d.spec.key)
+        .map((d) => d.spec.key),
+    ).toEqual(["scene-1"]);
+  });
+  it("Voice Over insere o prefixo e permite trocar de plano sem perder a narração", () => {
+    const e = editor("action", "Uma lembrança distante.");
+    e.run(setShot("vo"));
+    expect(e.state.doc.textContent).toBe(
+      "VOICE OVER (VO) — Uma lembrança distante.",
+    );
+    e.run(setShot("vo"));
+    expect(e.state.doc.textContent).toBe(
+      "VOICE OVER (VO) — Uma lembrança distante.",
+    );
+    e.run(setShot("pg"));
+    expect(e.state.doc.textContent).toBe(
+      "PLANO GERAL — Uma lembrança distante.",
+    );
+    e.run(setShot("vo"));
+    e.run(setKind("insert"));
+    expect(e.state.doc.textContent).toBe("INSERT Uma lembrança distante.");
+  });
   for (const kind of kinds)
     it(`Enter: ${kind} → ${nextKind[kind]}`, () => {
       const e = editor(kind, "Algumas palavras");

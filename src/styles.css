@@ -745,8 +745,111 @@ small {
   position: relative;
   margin: 0 0 19.2px;
 }
-.screenplay p[data-kind="scene"] {
+.screenplay p[data-kind="scene"],
+.screenplay p[data-kind="shot"],
+.screenplay p[data-kind="insert"] {
   text-transform: uppercase;
+}
+.scene-number {
+  position: absolute;
+  right: -44px;
+  /* The inline static position follows a page break before this heading. */
+  top: auto;
+  width: 36px;
+  text-align: right;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  user-select: none;
+  pointer-events: none;
+}
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+.shot-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.shot-illustration {
+  background-image: url("/shot-guide.png");
+  background-repeat: no-repeat;
+  background-color: #242321;
+  flex-shrink: 0;
+}
+.shot-card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  align-items: flex-start;
+}
+.shot-audio-illustration {
+  background-image: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #eee4d1;
+}
+.shot-audio-illustration svg {
+  width: 44px;
+  height: 44px;
+  stroke-width: 1.2;
+}
+.shot-card small {
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+.shot-card h3 {
+  font-family: var(--serif);
+  font-size: 18px;
+  margin: 6px 0;
+}
+.shot-card p {
+  font-size: 12px;
+  line-height: 1.6;
+  flex: 1;
+  margin: 0 0 14px;
+}
+.shot-card button {
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.shot-footnote {
+  font-size: 12px;
+  margin-bottom: 0;
+}
+@media (max-width: 850px) {
+  .shot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .screenplay p[data-kind="scene"] {
+    margin-right: 26px;
+  }
+  .scene-number {
+    right: -26px;
+    width: 22px;
+    font-size: 11px;
+  }
+  .shot-grid {
+    gap: 10px;
+  }
+  .shot-card-body {
+    padding: 10px;
+  }
+  .shot-card h3 {
+    font-size: 16px;
+  }
 }
 .screenplay p[data-kind="character"] {
   margin-left: 192px;

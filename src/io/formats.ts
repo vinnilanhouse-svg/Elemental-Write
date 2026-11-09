@@ -10,6 +10,7 @@ import {
   type Mark,
 } from "../model";
 import { geometry, indents, layout } from "../editor/layout";
+import { technicalKind, insertPrefix } from "../shots";
 export const styleNames: Record<Kind, string> = {
   scene: "Scene Heading",
   action: "Action",
@@ -17,6 +18,8 @@ export const styleNames: Record<Kind, string> = {
   dialogue: "Dialogue",
   parenthetical: "Parenthetical",
   transition: "Transition",
+  shot: "Shot",
+  insert: "Insert",
 };
 const esc = (s: string) =>
   s
@@ -48,8 +51,8 @@ export function fountainExport(d: Manuscript) {
     output +=
       k === "scene"
         ? "." + t.toLocaleUpperCase("pt-BR")
-        : k === "action"
-          ? "!" + t
+        : k === "action" || k === "shot" || k === "insert"
+          ? "!" + (uppercase(k) ? t.toLocaleUpperCase("pt-BR") : t)
           : k === "character"
             ? "@" + t.toLocaleUpperCase("pt-BR")
             : k === "transition"
@@ -134,7 +137,11 @@ export function parseFountain(raw: string): {
     const rows = paragraph.replace(/^\n+|\n+$/g, "").split("\n");
     let first = rows[0];
     if (first.startsWith("!")) {
-      push("action", [first.slice(1), ...rows.slice(1)].join("\n"));
+      const text = [first.slice(1), ...rows.slice(1)].join("\n");
+      const plain = parseInline(text)
+        .map((s) => (s.type === "text" ? s.text : "\n"))
+        .join("");
+      push(technicalKind(plain), text);
       continue;
     }
     if (
@@ -178,7 +185,7 @@ export function parseFountain(raw: string): {
       flush();
       continue;
     }
-    push("action", paragraph);
+    push(technicalKind(paragraph), paragraph);
   }
   return {
     doc: { type: "doc", content: blocks.length ? blocks : [block()] },
@@ -195,7 +202,7 @@ const fdxStyleAttribute = (marks: Mark[] = []) => {
   return styles.length ? ` Style="${styles.join("+")}"` : "";
 };
 export function fdxExport(d: Manuscript) {
-  return `<?xml version="1.0" encoding="UTF-8"?><FinalDraft DocumentType="Script" Template="No" Version="1"><Content>${d.doc.content.map((b) => `<Paragraph Type="${styleNames[b.attrs.kind]}">${b.content?.map((s) => (s.type === "hard_break" ? "<Text>\n</Text>" : `<Text${fdxStyleAttribute(s.marks)}>${esc(uppercase(b.attrs.kind) ? s.text.toLocaleUpperCase("pt-BR") : s.text)}</Text>`)).join("") || "<Text></Text>"}</Paragraph>`).join("")}</Content><TitlePage><Content><Paragraph Type="Title"><Text>${esc(d.title)}</Text></Paragraph><Paragraph Type="Author"><Text>${esc(d.author)}</Text></Paragraph></Content></TitlePage></FinalDraft>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><FinalDraft DocumentType="Script" Template="No" Version="1"><Content>${d.doc.content.map((b) => `<Paragraph Type="${b.attrs.kind === "insert" ? "Shot" : styleNames[b.attrs.kind]}">${b.content?.map((s) => (s.type === "hard_break" ? "<Text>\n</Text>" : `<Text${fdxStyleAttribute(s.marks)}>${esc(uppercase(b.attrs.kind) ? s.text.toLocaleUpperCase("pt-BR") : s.text)}</Text>`)).join("") || "<Text></Text>"}</Paragraph>`).join("")}</Content><TitlePage><Content><Paragraph Type="Title"><Text>${esc(d.title)}</Text></Paragraph><Paragraph Type="Author"><Text>${esc(d.author)}</Text></Paragraph></Content></TitlePage></FinalDraft>`;
 }
 export function parseXml(xml: string) {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml))
@@ -213,7 +220,7 @@ export function parseFDX(raw: string) {
     ...xml.querySelectorAll("FinalDraft > Content > Paragraph"),
   ];
   const content = paragraphs.map((p) => {
-    const kind =
+    let kind =
       (Object.keys(styleNames) as Kind[]).find(
         (k) => styleNames[k] === p.getAttribute("Type"),
       ) || "action";
@@ -234,6 +241,13 @@ export function parseFDX(raw: string) {
           });
       });
     });
+    if (
+      kind === "shot" &&
+      insertPrefix(
+        spans.map((s) => (s.type === "text" ? s.text : "\n")).join(""),
+      )
+    )
+      kind = "insert";
     return {
       type: "block" as const,
       attrs: { kind },
@@ -273,7 +287,13 @@ export async function docxExport(d: Manuscript) {
       indent: { left: indents[k].left * 20, right: indents[k].right * 20 },
       alignment:
         indents[k].align === "right" ? AlignmentType.RIGHT : AlignmentType.LEFT,
-      keepNext: ["scene", "character", "parenthetical"].includes(k),
+      keepNext: [
+        "scene",
+        "character",
+        "parenthetical",
+        "shot",
+        "insert",
+      ].includes(k),
       widowControl: true,
     },
   }));
@@ -386,9 +406,11 @@ export async function parseDOCX(file: File) {
   for (const p of paragraphs) {
     const styleId = elements(p, "pStyle")[0]?.getAttributeNS(ns, "val") || "";
     const name = (styleMap.get(styleId) || styleId).toLowerCase();
-    let kind = (Object.keys(styleNames) as Kind[]).find(
-      (k) => k === name || styleNames[k].toLowerCase() === name,
-    );
+    let kind =
+      (Object.keys(styleNames) as Kind[]).find((k) => k === styleId) ||
+      (Object.keys(styleNames) as Kind[]).find(
+        (k) => k === name || styleNames[k].toLowerCase() === name,
+      );
     const spans: Span[] = [];
     for (const r of elements(p, "r")) {
       const marks: Mark[] = [];
@@ -430,7 +452,7 @@ export async function parseDOCX(file: File) {
             ? "transition"
             : previous === "character" || (previous as Kind) === "parenthetical"
               ? "dialogue"
-              : "action";
+              : technicalKind(t);
     }
     previous = kind;
     content.push({ type: "block", attrs: { kind }, content: spans });

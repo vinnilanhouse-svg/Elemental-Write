@@ -26,6 +26,8 @@ export const indents: Record<
   dialogue: { left: 72, right: 72, after: 14.4, align: "left" },
   parenthetical: { left: 108, right: 108, after: 0, align: "left" },
   transition: { left: 0, right: 0, after: 14.4, align: "right" },
+  shot: { left: 0, right: 0, after: 14.4, align: "left" },
+  insert: { left: 0, right: 0, after: 14.4, align: "left" },
 };
 export type LayoutLine = {
   text: string;
@@ -78,7 +80,8 @@ export function layout(blocks: Block[], paper: Manuscript["paper"]) {
     const rows = wrap(text, Math.max(8, Math.floor(width / characterWidth)));
     const bottom = g.height - g.bottom;
     let reserve = g.line;
-    if (kind === "scene") reserve = rows.length * g.line + style.after + g.line;
+    if (["scene", "shot", "insert"].includes(kind))
+      reserve = rows.length * g.line + style.after + g.line;
     if (kind === "character" || kind === "parenthetical") {
       reserve = rows.length * g.line;
       let next = blockIndex + 1;

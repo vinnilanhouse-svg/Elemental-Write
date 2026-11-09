@@ -14,9 +14,11 @@ import {
 import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
 import { undo, redo } from "prosemirror-history";
 import { toggleMark } from "prosemirror-commands";
-import { schema, editorPlugins, setKind } from "./schema";
+import { schema, editorPlugins, setKind, setShot } from "./schema";
+import type { ShotId } from "../shots";
 import {
   characters,
+  kinds,
   labels,
   type ScriptDoc,
   type Kind,
@@ -26,6 +28,7 @@ import { layout, indents, wrap, characterWidth } from "./layout";
 export type EditorHandle = {
   command: (name: string) => void;
   kind: (kind: Kind) => void;
+  shot: (id: ShotId) => void;
   scene: (index: number) => void;
   search: (query: string) => number;
   nextMatch: () => void;
@@ -37,6 +40,7 @@ type Props = {
   onKind: (kind: Kind) => void;
   onPages: (pages: number) => void;
   onHighlightChange?: (active: boolean) => void;
+  onShotRequest?: () => void;
 };
 const isHighlighted = (state: EditorState) =>
   state.selection.empty
@@ -246,6 +250,20 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
               return true;
             }
           }
+          if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            const current = v.state.selection.$from.parent.attrs.kind as Kind;
+            const next =
+              kinds[
+                (kinds.indexOf(current) +
+                  (e.shiftKey ? -1 : 1) +
+                  kinds.length) %
+                  kinds.length
+              ];
+            if (next === "shot" && callbacks.current.onShotRequest) {
+              callbacks.current.onShotRequest();
+              return true;
+            }
+          }
           if (e.key.length === 1 || e.key === "Backspace")
             dismissed.current = false;
           return false;
@@ -336,6 +354,13 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
           const v = viewRef.current;
           if (v) {
             setKind(kind)(v.state, v.dispatch);
+            v.focus();
+          }
+        },
+        shot(id) {
+          const v = viewRef.current;
+          if (v) {
+            setShot(id)(v.state, v.dispatch);
             v.focus();
           }
         },

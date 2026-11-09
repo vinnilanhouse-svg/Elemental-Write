@@ -43,6 +43,7 @@ import {
   ArrowDown,
   X,
   Minus,
+  Camera,
 } from "lucide-react";
 import { Logo, Modal, Drawer, Field, Help } from "./ui";
 import { repository } from "./data/repository";
@@ -62,6 +63,7 @@ import {
 } from "./model";
 import { ScreenplayEditor, type EditorHandle } from "./editor/Editor";
 import { geometry } from "./editor/layout";
+import { ShotLibrary } from "./ShotLibrary";
 import { backup, parseBackup, type Backup } from "./io/backup";
 import {
   download,
@@ -1197,6 +1199,7 @@ function Workspace({
     [outline, setOutline] = useState(false),
     [focus, setFocus] = useState(false),
     [highlighted, setHighlighted] = useState(false),
+    [shotLibrary, setShotLibrary] = useState<"choose" | "guide" | null>(null),
     [exporting, setExporting] = useState("");
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -1403,7 +1406,11 @@ function Workspace({
               aria-label="Tipo do bloco"
               value={kind}
               title={labels[kind]}
-              onChange={(e) => editor.current?.kind(e.target.value as Kind)}
+              onChange={(e) => {
+                const next = e.target.value as Kind;
+                if (next === "shot") setShotLibrary("choose");
+                else editor.current?.kind(next);
+              }}
             >
               {kinds.map((k) => (
                 <option key={k} value={k}>
@@ -1458,6 +1465,22 @@ function Workspace({
           </span>
         )}
         <div className="toolbar-right">
+          {value.kind === "script" && (
+            <button
+              className="icon-button"
+              aria-label="Guia de planos"
+              title={
+                kind === "shot"
+                  ? "Guia de planos · alterar enquadramento"
+                  : "Guia de planos"
+              }
+              onClick={() =>
+                setShotLibrary(kind === "shot" ? "choose" : "guide")
+              }
+            >
+              <Camera size={17} />
+            </button>
+          )}
           <button
             className="icon-button"
             aria-label="Salvar agora"
@@ -1627,6 +1650,7 @@ function Workspace({
                   onKind={setKind}
                   onPages={setPages}
                   onHighlightChange={setHighlighted}
+                  onShotRequest={() => setShotLibrary("choose")}
                 />
                 <div className="paper-end">
                   {Array.from({ length: 3 }, (_, i) => (
@@ -1692,6 +1716,16 @@ function Workspace({
           )}
         </div>
       </footer>
+      {shotLibrary && (
+        <ShotLibrary
+          choose={shotLibrary === "choose"}
+          close={() => setShotLibrary(null)}
+          onChoose={(id) => {
+            setShotLibrary(null);
+            requestAnimationFrame(() => editor.current?.shot(id));
+          }}
+        />
+      )}
       {settings && (
         <Modal title="Página e folha de rosto" close={() => setSettings(false)}>
           <Field label="Título do documento">

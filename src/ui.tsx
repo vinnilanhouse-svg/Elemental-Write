@@ -141,6 +141,11 @@ export function Help({ close }: { close: () => void }) {
         projetos, roteiros e notas. O botão Cenas abre o índice do roteiro.
         Importação, tema e configurações da página ficam no menu de três pontos.
       </p>
+      <p>
+        As cenas são numeradas automaticamente à direita do cabeçalho. Escolha
+        Plano no seletor para definir um enquadramento; o ícone de câmera abre o
+        guia ilustrado. Insert começa com INSERT, pronto para a descrição.
+      </p>
       <dl className="shortcuts">
         <dt>Enter</dt>
         <dd>Próximo elemento pelo contexto. Depois de uma fala, personagem.</dd>

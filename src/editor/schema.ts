@@ -4,6 +4,8 @@ import { splitBlock, baseKeymap } from "prosemirror-commands";
 import { keymap } from "prosemirror-keymap";
 import { history, undo, redo } from "prosemirror-history";
 import { kinds, nextKind, normalizeKind, type Kind } from "../model";
+import { shots, shotPrefix, insertPrefix, type ShotId } from "../shots";
+import { sceneNumbers } from "./sceneNumbers";
 export const schema = new Schema({
   nodes: {
     doc: { content: "block+" },
@@ -40,8 +42,8 @@ export const schema = new Schema({
     highlight: { parseDOM: [{ tag: "mark" }], toDOM: () => ["mark", 0] },
   },
 });
-export const setKind =
-  (kind: Kind): Command =>
+const changeKind =
+  (kind: Kind, prefix?: string): Command =>
   (state, dispatch) => {
     const { $from } = state.selection;
     if ($from.depth !== 1) return false;
@@ -80,9 +82,38 @@ export const setKind =
     ) {
       tr.delete(start, end);
     }
+    if (kind === "insert" || prefix) {
+      const current = tr.doc.nodeAt($from.before())!;
+      const content = current.textBetween(0, current.content.size, "", "\n");
+      const oldPrefix =
+        $from.parent.attrs.kind === "shot"
+          ? shotPrefix(content)
+          : insertPrefix(content);
+      const nextPrefix = prefix || "INSERT ";
+      if (content.slice(0, nextPrefix.length) !== nextPrefix) {
+        // Replace only a recognized technical prefix; keep text, breaks and marks.
+        tr.replaceWith(
+          start,
+          start + oldPrefix.length,
+          schema.text(nextPrefix),
+        );
+      }
+      if (
+        state.selection.empty &&
+        tr.selection.from < start + nextPrefix.length
+      )
+        tr.setSelection(
+          TextSelection.create(tr.doc, start + nextPrefix.length),
+        );
+    }
     dispatch?.(tr.scrollIntoView());
     return true;
   };
+export const setKind = (kind: Kind): Command => changeKind(kind);
+export const setShot = (id: ShotId): Command => {
+  const shot = shots.find((s) => s.id === id)!;
+  return changeKind("shot", shot.name.toLocaleUpperCase("pt-BR") + " — ");
+};
 export const cycleKind =
   (direction: number): Command =>
   (state, dispatch) => {
@@ -159,6 +190,7 @@ export const hardBreak: Command = (state, dispatch) => {
 };
 export const editorPlugins = () => [
   history(),
+  sceneNumbers(),
   keymap({
     Enter: enter,
     "Shift-Enter": hardBreak,
