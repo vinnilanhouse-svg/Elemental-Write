@@ -1,3 +1,4 @@
+import { dismissPrivacyNotice } from "./browser-support.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -50,6 +51,7 @@ const toggleTheme = async (name) => {
   if (await page.locator(".workspace-menu[open]").count()) await menu.click();
 };
 await page.goto(process.env.BASE_URL || "http://localhost:5173");
+await dismissPrivacyNotice(page);
 await page.screenshot({ path: "artifacts/login.png", fullPage: true });
 await step("Criar perfil local", async () => {
   await page.getByLabel("Como podemos chamar você?").fill("Ana Ribeiro");

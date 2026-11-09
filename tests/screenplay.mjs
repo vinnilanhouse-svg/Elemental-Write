@@ -1,3 +1,4 @@
+import { dismissPrivacyNotice } from "./browser-support.mjs";
 import { chromium, expect } from "@playwright/test";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -18,6 +19,7 @@ try {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(process.env.BASE_URL || "http://localhost:5174");
+  await dismissPrivacyNotice(page);
   await page.evaluate(async () => {
     const { repository: r } = await import("/src/data/repository.ts");
     const { makeManuscript, block } = await import("/src/model.ts");

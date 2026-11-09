@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Abra o endereço informado pelo Vite no seu computador. Crie um perfil local com nome e e-mail, sem senha. O projeto **Além do horizonte** é uma demonstração com duas cenas, dois personagens e uma nota. Cada perfil recebe sua própria demonstração uma única vez; excluí-la não a recria.
+Abra o endereço informado pelo Vite no seu computador. Crie um perfil local com nome ou apelido e e-mail opcional, sem senha. O projeto **Além do horizonte** é uma demonstração com duas cenas, dois personagens e uma nota. Cada perfil recebe sua própria demonstração uma única vez; excluí-la não a recria.
 
 ```sh
 npm test          # regras do editor, IndexedDB, conflitos, backup e formatos
@@ -27,6 +27,7 @@ npm run test:browser
 npm run test:screenplay  # planos, Insert, números de cena e responsividade
 npm run test:production # espelho, capa editável e PDFs de produção
 npm run test:icons      # seleção de ícones por projeto e responsividade
+npm run test:privacy    # versão compilada com cabeçalhos de segurança; ajuste BASE_URL
 ```
 
 O teste usa `/usr/bin/chromium` quando disponível, ou o navegador instalado pelo Playwright. `CHROMIUM_PATH` e `BASE_URL` podem ajustar o executável e o endereço **dos testes**, sem serem necessários à aplicação. Usa um contexto de navegador isolado, com dados fictícios. Registra capturas e arquivos em `artifacts/` (ignorado pelo Git).
@@ -44,6 +45,16 @@ O servidor escuta somente em `127.0.0.1`. Uma porta ocupada gera aviso e não tr
 O arquivo `vercel.json` configura o framework Vite, a instalação com `npm ci`, o build com `npm run build` e a saída `dist`. No projeto Vercel conectado a este repositório, use a branch de produção `main` e a raiz do repositório como Root Directory. Não são necessárias variáveis de ambiente. Use Node.js 22.12+ (o build foi validado com Node.js 24).
 
 Um push para `main` aciona o deploy quando a integração Git do projeto está habilitada. A hospedagem serve a aplicação, mas o armazenamento continua no navegador: não há sincronização de projetos entre dispositivos. Para transferir textos do localhost ao domínio publicado, exporte e restaure um backup JSON.
+
+## Privacidade e dados pessoais
+
+O primeiro acesso apresenta um aviso sobre o armazenamento necessário ao editor. A aplicação não instala cookies de publicidade/análise nem pede um consentimento genérico para finalidades inexistentes. **Entendi** registra somente a versão e a data da leitura. As páginas públicas `/privacidade.html` e `/termos.html` funcionam sem JavaScript, tanto no Vercel quanto no pacote localhost, com **Elemental Corp** e **coradi.maddaloni@gmail.com** como responsável e contato informados pelo proprietário.
+
+**Privacidade e seus dados**, disponível antes de criar o perfil, na navegação e no menu do editor, permite corrigir nome/apelido e e-mail, baixar um ZIP com o perfil e os backups de todos os seus projetos e excluir o perfil com seus dados. O e-mail é opcional. A exclusão preserva outros perfis e impede que abas antigas recriem projetos/documentos removidos. Os JSON dos projetos no ZIP podem ser importados novamente; perfil.json é fornecido para consulta. Capas, ícones, notas, marcas e espelhos são preservados no arquivo.
+
+As proteções de carregamento de recursos são configuradas em `vercel.json` e `localhost/security-headers.json`. O teste de privacidade deve apontar para uma cópia do pacote compilado servida por `iniciar.cjs`, com esses cabeçalhos, por exemplo `BASE_URL=http://localhost:5173 npm run test:privacy`. O teste verifica páginas legais sem JavaScript, ausência de cookies e requisições de rastreamento, correção/exportação/exclusão, outras abas e PDF sob CSP.
+
+O código não certifica conformidade jurídica integral. A configuração e os contratos de hospedagem/e-mail, a retenção de registros e o procedimento de atendimento continuam sob responsabilidade do operador. Veja [PRIVACIDADE-OPERACAO.md](PRIVACIDADE-OPERACAO.md) para o escopo implementado, as limitações e as conferências externas pendentes.
 
 ## Fluxo disponível
 

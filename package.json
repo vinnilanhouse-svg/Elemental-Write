@@ -14,7 +14,8 @@
     "test:autosave": "node tests/autosave.mjs",
     "test:screenplay": "node tests/screenplay.mjs",
     "test:production": "node tests/production.mjs",
-    "test:icons": "node tests/project-icons.mjs"
+    "test:icons": "node tests/project-icons.mjs",
+    "test:privacy": "node tests/privacy.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.11",

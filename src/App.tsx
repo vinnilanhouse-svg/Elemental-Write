@@ -46,6 +46,7 @@ import {
   Camera,
   Table2,
   Shapes,
+  ShieldCheck,
 } from "lucide-react";
 import { Logo, Modal, Drawer, Field, Help } from "./ui";
 import { repository } from "./data/repository";
@@ -76,6 +77,14 @@ import type { CoverTemplate } from "./cover/model";
 import { IconPicker } from "./projects/IconPicker";
 import { ProjectIcon } from "./projects/ProjectIcon";
 import type { ProjectIconId } from "./projects/icons";
+import { PrivacyCenter } from "./privacy/PrivacyCenter";
+import { PrivacyLinks, PrivacyNotice } from "./privacy/PrivacyNotice";
+import {
+  acknowledgeNotice,
+  noticeAcknowledged,
+  privacy,
+} from "./privacy/config";
+import { personalDataArchive } from "./privacy/archive";
 import { backup, parseBackup, type Backup } from "./io/backup";
 import {
   download,
@@ -136,7 +145,58 @@ export default function App() {
     documents: Manuscript[];
   } | null>(null);
   const [iconEdit, setIconEdit] = useState<Project | null>(null);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [noticeSeen, setNoticeSeen] = useState(noticeAcknowledged);
+  const privacyChannel = useRef<BroadcastChannel | null>(null);
   const beforeNavigate = useRef<() => Promise<boolean>>(async () => true);
+  const clearProfile = () => {
+    setActive(null);
+    setProject(null);
+    setDocs([]);
+    setProjects([]);
+    setProfile(null);
+    setPrivacyOpen(false);
+    setNavigationOpen(false);
+    setForm(null);
+    setConfirm(null);
+    setCoverEdit(null);
+    setIconEdit(null);
+    setPreview(null);
+    setRestore(null);
+    setMirrorFor(null);
+    beforeNavigate.current = async () => true;
+  };
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(privacy.channel);
+    privacyChannel.current = channel;
+    channel.onmessage = async (event) => {
+      const data = event.data;
+      if (
+        typeof data?.profileId !== "string" ||
+        !["profile-deleted", "profile-updated"].includes(data.type)
+      )
+        return;
+      try {
+        const all = await repository.profiles();
+        setProfiles(all);
+        if (!profile || data.profileId !== profile.id) return;
+        const current = all.find((p) => p.id === profile.id);
+        if (!current) {
+          clearProfile();
+          setToast("Este perfil e seus dados foram excluídos em outra aba.");
+        } else if (data.type === "profile-updated") setProfile(current);
+      } catch {
+        setToast(
+          "Não foi possível atualizar os perfis desta aba. Recarregue para consultar os dados atuais.",
+        );
+      }
+    };
+    return () => {
+      channel.close();
+      if (privacyChannel.current === channel) privacyChannel.current = null;
+    };
+  }, [profile?.id]);
   const refresh = async (p: Profile) =>
     setProjects(await repository.projects(p.id));
   useEffect(() => {
@@ -197,11 +257,58 @@ export default function App() {
     }
   };
   const enterProfile = async (p: Profile) => {
-    setProfile(p);
-    localStorage.setItem("ew.profile", p.id);
+    const all = await repository.profiles();
+    const current = all.find((v) => v.id === p.id);
+    if (!current) {
+      setProfiles(all);
+      throw Error(
+        "Este perfil foi removido. Escolha outro perfil para continuar.",
+      );
+    }
+    setProfile(current);
+    localStorage.setItem("ew.profile", current.id);
     setProject(null);
     setActive(null);
     await refresh(p);
+  };
+  const openPrivacy = () => {
+    setNavigationOpen(false);
+    setPrivacyOpen(true);
+  };
+  const updatePersonalData = async (name: string, email: string) => {
+    if (!profile) return;
+    const saved = await repository.updateProfile(profile.id, name, email);
+    setProfile(saved);
+    setProfiles(await repository.profiles());
+    privacyChannel.current?.postMessage({
+      type: "profile-updated",
+      profileId: profile.id,
+    });
+  };
+  const exportPersonalData = async () => {
+    if (!profile) return;
+    if (!(await beforeNavigate.current()))
+      throw Error(
+        "Não foi possível salvar o documento atual. Use Exportar texto atual para preservar as alterações antes de baixar todos os dados.",
+      );
+    const snapshot = await repository.exportProfile(profile.id);
+    download(
+      await personalDataArchive(snapshot),
+      `Elemental-Write-${filename(profile.name)}-dados.zip`,
+    );
+  };
+  const deletePersonalData = async () => {
+    if (!profile) return;
+    await repository.deleteProfile(profile.id);
+    privacyChannel.current?.postMessage({
+      type: "profile-deleted",
+      profileId: profile.id,
+    });
+    if (localStorage.getItem("ew.profile") === profile.id)
+      localStorage.removeItem("ew.profile");
+    setProfiles(await repository.profiles());
+    clearProfile();
+    setToast("Perfil e dados locais excluídos.");
   };
   const navigate = async (action: () => Promise<void>) => {
     if (await beforeNavigate.current()) await action();
@@ -652,6 +759,10 @@ export default function App() {
         </div>
       </div>
       <div className="sidebar-bottom">
+        <button className="nav-item" onClick={openPrivacy}>
+          <ShieldCheck size={17} />
+          Privacidade e seus dados
+        </button>
         <button className="nav-item" onClick={() => setHelp(true)}>
           <HelpCircle size={17} />
           Ajuda e atalhos
@@ -690,6 +801,7 @@ export default function App() {
         <Login
           profiles={profiles}
           onEnter={(p) => safe(() => enterProfile(p))}
+          onPrivacy={openPrivacy}
           onCreate={(name, email) =>
             safe(async () => {
               const p = await repository.addProfile(name, email);
@@ -726,6 +838,14 @@ export default function App() {
                   {project?.title || "Seu espaço de escrita"}
                 </span>
                 <div className="top-actions">
+                  <button
+                    className="icon-button"
+                    aria-label="Privacidade e seus dados"
+                    title="Privacidade e seus dados"
+                    onClick={openPrivacy}
+                  >
+                    <ShieldCheck size={18} />
+                  </button>
                   <span className="local-pill">
                     <span /> Modo local
                   </span>
@@ -921,6 +1041,7 @@ export default function App() {
                 onNavigate={() => setNavigationOpen(true)}
                 theme={profile.theme}
                 onTheme={theme}
+                onPrivacy={openPrivacy}
                 mirrorOpen={mirrorFor === active.id}
                 onMirrorChange={(open) => setMirrorFor(open ? active.id : null)}
                 fallbackWriter={profile.name}
@@ -995,6 +1116,33 @@ export default function App() {
         />
       )}{" "}
       {help && <Help close={() => setHelp(false)} />}
+      {privacyOpen && (
+        <PrivacyCenter
+          profile={profile}
+          close={() => setPrivacyOpen(false)}
+          update={updatePersonalData}
+          exportData={exportPersonalData}
+          remove={deletePersonalData}
+          reviewNotice={() => {
+            try {
+              localStorage.removeItem(privacy.noticeKey);
+            } catch {
+              /* Acknowledgment is optional. */
+            }
+            setNoticeSeen(false);
+            setPrivacyOpen(false);
+          }}
+        />
+      )}
+      {!noticeSeen && (
+        <PrivacyNotice
+          acknowledge={() => {
+            acknowledgeNotice();
+            setNoticeSeen(true);
+          }}
+          details={openPrivacy}
+        />
+      )}
       {preview && (
         <ImportModal
           value={preview}
@@ -1081,10 +1229,12 @@ function Login({
   profiles,
   onEnter,
   onCreate,
+  onPrivacy,
 }: {
   profiles: Profile[];
   onEnter: (p: Profile) => void;
   onCreate: (name: string, email: string) => void;
+  onPrivacy: () => void;
 }) {
   const [creating, setCreating] = useState(!profiles.length),
     [name, setName] = useState(""),
@@ -1163,16 +1313,16 @@ function Login({
                 required
                 autoFocus
                 name="name"
-                placeholder="Seu nome"
+                placeholder="Seu nome ou apelido"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={120}
               />
             </Field>
-            <Field label="E-mail do perfil">
+            <Field label="E-mail do perfil (opcional)">
               <input
-                required
                 type="email"
+                maxLength={254}
                 placeholder="voce@exemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -1181,7 +1331,7 @@ function Login({
             <button
               className="primary full"
               type="submit"
-              disabled={!name.trim() || !email.trim()}
+              disabled={!name.trim()}
             >
               Entrar no meu espaço
               <ArrowUpRight size={18} />
@@ -1206,6 +1356,18 @@ function Login({
             autenticação segura.
           </p>
         </div>
+        <p className="login-privacy-copy">
+          O e-mail é opcional e não é usado para mensagens. Consulte as
+          informações antes de continuar.
+        </p>
+        <PrivacyLinks />
+        <button
+          className="text-button login-privacy-button"
+          onClick={onPrivacy}
+        >
+          <ShieldCheck size={15} />
+          Privacidade e seus dados
+        </button>
       </main>
     </div>
   );
@@ -1317,6 +1479,7 @@ function Workspace({
   onNavigate,
   theme,
   onTheme,
+  onPrivacy,
   mirrorOpen,
   onMirrorChange,
   fallbackWriter,
@@ -1332,6 +1495,7 @@ function Workspace({
   onNavigate: () => void;
   theme: Profile["theme"];
   onTheme: () => void;
+  onPrivacy: () => void;
   mirrorOpen: boolean;
   onMirrorChange: (open: boolean) => void;
   fallbackWriter: string;
@@ -1541,6 +1705,15 @@ function Workspace({
               <MoreHorizontal size={21} />
             </summary>
             <div className="menu-pop">
+              <button
+                onClick={(e) => {
+                  e.currentTarget.closest("details")?.removeAttribute("open");
+                  onPrivacy();
+                }}
+              >
+                <ShieldCheck size={15} />
+                Privacidade e seus dados
+              </button>
               {value.kind === "script" && (
                 <button
                   onClick={(e) => {

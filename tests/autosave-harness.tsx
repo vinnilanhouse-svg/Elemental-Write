@@ -12,8 +12,9 @@ function Harness() {
   return null;
 }
 export async function mount() {
+  const profile = await repository.addProfile("Autosave", "");
   const project = await repository.createProject(
-    "autosave-test",
+    profile.id,
     "Teste de autosave",
   );
   initial = makeManuscript(project.id, "Roteiro em edição contínua");

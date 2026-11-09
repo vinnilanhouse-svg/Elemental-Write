@@ -1,6 +1,7 @@
 import Dexie, { type Table } from "dexie";
 import type { CoverTemplate } from "../cover/model";
 import { isProjectIconId, type ProjectIconId } from "../projects/icons";
+import type { ProfileSnapshot } from "../privacy/archive";
 import {
   block,
   id,
@@ -18,7 +19,14 @@ export class ConflictError extends Error {
 }
 export interface Repository {
   profiles(): Promise<Profile[]>;
-  addProfile(name: string, email: string): Promise<Profile>;
+  addProfile(name: string, email?: string): Promise<Profile>;
+  updateProfile(
+    profileId: string,
+    name: string,
+    email: string,
+  ): Promise<Profile>;
+  exportProfile(profileId: string): Promise<ProfileSnapshot>;
+  deleteProfile(profileId: string): Promise<void>;
   theme(profileId: string, theme: Profile["theme"]): Promise<void>;
   projects(profileId: string): Promise<Project[]>;
   createProject(
@@ -63,7 +71,7 @@ export class LocalRepository extends Dexie implements Repository {
   async profiles() {
     return this.people.toArray();
   }
-  async addProfile(name: string, email: string) {
+  async addProfile(name: string, email = "") {
     const p: Profile = {
       id: id(),
       name,
@@ -125,6 +133,65 @@ export class LocalRepository extends Dexie implements Repository {
     );
     return p;
   }
+  async updateProfile(profileId: string, name: string, email: string) {
+    if (!name.trim() || name.trim().length > 120 || email.trim().length > 254)
+      throw Error("Confira o nome e o e-mail do perfil.");
+    return this.transaction("rw", this.people, async () => {
+      const current = await this.people.get(profileId);
+      if (!current) throw Error("Este perfil foi removido.");
+      const saved = { ...current, name: name.trim(), email: email.trim() };
+      await this.people.put(saved);
+      return saved;
+    });
+  }
+  async exportProfile(profileId: string): Promise<ProfileSnapshot> {
+    return this.transaction(
+      "r",
+      this.people,
+      this.folders,
+      this.manuscripts,
+      async () => {
+        const profile = await this.people.get(profileId);
+        if (!profile) throw Error("Este perfil foi removido.");
+        const projects = await this.folders
+          .where("profileId")
+          .equals(profileId)
+          .toArray();
+        const documents = projects.length
+          ? await this.manuscripts
+              .where("projectId")
+              .anyOf(projects.map((p) => p.id))
+              .toArray()
+          : [];
+        return {
+          profile,
+          projects: projects.map((project) => ({
+            project,
+            documents: documents.filter((d) => d.projectId === project.id),
+          })),
+        };
+      },
+    );
+  }
+  async deleteProfile(profileId: string) {
+    await this.transaction(
+      "rw",
+      this.people,
+      this.folders,
+      this.manuscripts,
+      async () => {
+        const projects = await this.folders
+          .where("profileId")
+          .equals(profileId)
+          .primaryKeys();
+        if (projects.length) {
+          await this.manuscripts.where("projectId").anyOf(projects).delete();
+          await this.folders.bulkDelete(projects);
+        }
+        await this.people.delete(profileId);
+      },
+    );
+  }
   async theme(profileId: string, theme: Profile["theme"]) {
     await this.people.update(profileId, { theme });
   }
@@ -142,7 +209,13 @@ export class LocalRepository extends Dexie implements Repository {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    await this.folders.add(p);
+    await this.transaction("rw", this.people, this.folders, async () => {
+      if (!(await this.people.get(profileId)))
+        throw Error(
+          "Este perfil foi removido. Escolha um perfil para continuar.",
+        );
+      await this.folders.add(p);
+    });
     return p;
   }
   async renameProject(project: Project, title: string, description: string) {
@@ -197,6 +270,8 @@ export class LocalRepository extends Dexie implements Repository {
   }
   async createDocument(doc: Manuscript) {
     await this.transaction("rw", this.manuscripts, this.folders, async () => {
+      if (!(await this.folders.get(doc.projectId)))
+        throw Error("O projeto foi removido.");
       await this.manuscripts.add(doc);
       await this.folders.update(doc.projectId, { updatedAt: Date.now() });
     });
@@ -229,12 +304,22 @@ export class LocalRepository extends Dexie implements Repository {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    await this.transaction("rw", this.folders, this.manuscripts, async () => {
-      await this.folders.add(p);
-      await this.manuscripts.bulkAdd(
-        docs.map((d) => ({ ...d, id: id(), projectId: p.id, revision: 0 })),
-      );
-    });
+    await this.transaction(
+      "rw",
+      this.people,
+      this.folders,
+      this.manuscripts,
+      async () => {
+        if (!(await this.people.get(profileId)))
+          throw Error(
+            "Este perfil foi removido. Escolha um perfil para continuar.",
+          );
+        await this.folders.add(p);
+        await this.manuscripts.bulkAdd(
+          docs.map((d) => ({ ...d, id: id(), projectId: p.id, revision: 0 })),
+        );
+      },
+    );
     return p;
   }
 }

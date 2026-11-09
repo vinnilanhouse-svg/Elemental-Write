@@ -5,11 +5,30 @@ import { makeManuscript, block } from "../src/model";
 import { backup, parseBackup } from "../src/io/backup";
 import { defaultCover } from "../src/cover/model";
 const db = () => new LocalRepository("test-" + crypto.randomUUID());
+async function owner(r: LocalRepository, profileId: string) {
+  if (!(await r.people.get(profileId)))
+    await r.people.add({
+      id: profileId,
+      name: profileId,
+      email: "",
+      theme: "dark",
+      createdAt: Date.now(),
+    });
+}
+async function project(
+  r: LocalRepository,
+  profileId: string,
+  title: string,
+  description = "",
+) {
+  await owner(r, profileId);
+  return r.createProject(profileId, title, description);
+}
 describe("Persistência IndexedDB e backup", () => {
   it("Ícone persiste por projeto e no backup sem alterar capa, nome ou outros projetos", async () => {
     const r = db();
-    const p = await r.createProject("ana", "Garagem");
-    const other = await r.createProject("ana", "Institucionais");
+    const p = await project(r, "ana", "Garagem");
+    const other = await project(r, "ana", "Institucionais");
     const cover = defaultCover();
     await r.saveProjectCover(p.id, cover);
     await r.renameProject(p, "Papo de Garagem", "Uma conversa.");
@@ -27,6 +46,7 @@ describe("Persistência IndexedDB e backup", () => {
       "car",
     );
     const parsed = parseBackup(JSON.stringify(backup(saved, [])));
+    await owner(r, "bruno");
     const restored = await r.restore("bruno", parsed.project, parsed.documents);
     expect(restored.icon).toBe("car");
     expect(restored.cover).toEqual(cover);
@@ -47,7 +67,7 @@ describe("Persistência IndexedDB e backup", () => {
   });
   it("Capa pertence ao projeto, persiste no backup e rejeita edições concorrentes", async () => {
     const r = db();
-    const p = await r.createProject("ana", "Institucionais");
+    const p = await project(r, "ana", "Institucionais");
     const cover = defaultCover();
     cover.blocks[1].text = "contato@example.com";
     const saved = await r.saveProjectCover(p.id, cover);
@@ -58,6 +78,7 @@ describe("Persistência IndexedDB e backup", () => {
     const parsed = parseBackup(
       JSON.stringify(backup(saved, [makeManuscript(p.id, "Tutorial")])),
     );
+    await owner(r, "bruno");
     const restored = await r.restore("bruno", parsed.project, parsed.documents);
     expect(restored.cover).toEqual(cover);
     expect(() =>
@@ -86,7 +107,7 @@ describe("Persistência IndexedDB e backup", () => {
   });
   it("Persiste dois roteiros e uma nota; rejeita revisões antigas e exclusões concorrentes", async () => {
     const r = db();
-    const p = await r.createProject("ana", "Teste");
+    const p = await project(r, "ana", "Teste");
     const a = makeManuscript(p.id, "A"),
       b = makeManuscript(p.id, "B"),
       n = makeManuscript(p.id, "Nota", "note");
@@ -118,7 +139,7 @@ describe("Persistência IndexedDB e backup", () => {
   });
   it("Backup preserva texto, marcas, metadados e notas em novo projeto", async () => {
     const r = db();
-    const p = await r.createProject("ana", "Projeto", "Descrição");
+    const p = await project(r, "ana", "Projeto", "Descrição");
     const a = makeManuscript(p.id, "Roteiro");
     a.author = "Ana";
     a.titlePage = true;
@@ -150,6 +171,7 @@ describe("Persistência IndexedDB e backup", () => {
     const raw = JSON.stringify(backup(p, [a, n]));
     const parsed = parseBackup(raw);
     expect(parsed.documents[0]).toEqual(a);
+    await owner(r, "bruno");
     const restored = await r.restore("bruno", parsed.project, parsed.documents);
     const docs = await r.documents(restored.id);
     expect(docs.map((x) => x.title).sort()).toEqual(["Ideias", "Roteiro"]);

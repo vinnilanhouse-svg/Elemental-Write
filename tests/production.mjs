@@ -1,3 +1,4 @@
+import { dismissPrivacyNotice } from "./browser-support.mjs";
 import { chromium, expect } from "@playwright/test";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -22,6 +23,7 @@ try {
     console.log("PAGE ERROR", e.message);
   });
   await page.goto(process.env.BASE_URL || "http://localhost:5175");
+  await dismissPrivacyNotice(page);
   const seeded = await page.evaluate(async () => {
     const { repository: r } = await import("/src/data/repository.ts");
     const { makeManuscript, block } = await import("/src/model.ts");
@@ -392,8 +394,9 @@ try {
     );
     const d = (await r.documents(projectId)).find((d) => d.id === docId);
     const parsed = parseBackup(JSON.stringify(backup(project, [d])));
+    const restoredProfile = await r.addProfile("Restauração", "");
     const restored = await r.restore(
-      "restored-test",
+      restoredProfile.id,
       parsed.project,
       parsed.documents,
     );

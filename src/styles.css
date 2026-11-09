@@ -3136,6 +3136,192 @@ p[data-kind="parenthetical"] .page-break:before {
     bottom: -23px;
   }
 }
+.privacy-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.privacy-links a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+.login-privacy-copy {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 20px 0 8px;
+}
+.login-privacy-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 11px;
+}
+.privacy-notice {
+  position: fixed;
+  z-index: 45;
+  left: 20px;
+  bottom: 20px;
+  max-width: 690px;
+  width: calc(100% - 40px);
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 20px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.privacy-notice > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.privacy-notice > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.privacy-notice strong {
+  font-size: 13px;
+}
+.privacy-notice p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 7px 0;
+}
+.privacy-notice-actions {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.privacy-notice-actions button {
+  font-size: 11px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.privacy-controller {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent);
+  margin: 8px 0 16px;
+}
+.privacy-controller > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.privacy-controller strong {
+  font-size: 14px;
+  color: var(--text);
+}
+.privacy-controller a {
+  color: var(--accent);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.privacy-controller svg {
+  flex-shrink: 0;
+}
+.privacy-storage,
+.privacy-profile,
+.privacy-export,
+.privacy-delete,
+.privacy-delete-confirm {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  margin-top: 24px;
+}
+.privacy-profile h3,
+.privacy-storage h3,
+.privacy-export h3,
+.privacy-delete h3,
+.privacy-delete-confirm h3 {
+  font: 22px var(--serif);
+  margin: 0 0 12px;
+}
+.privacy-profile p,
+.privacy-storage p,
+.privacy-export p,
+.privacy-delete p,
+.privacy-delete-confirm p {
+  font-size: 12px;
+}
+.privacy-profile p.muted {
+  font-size: 11px;
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+.privacy-profile-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.privacy-profile-fields input {
+  min-width: 0;
+  width: 100%;
+}
+.privacy-export button,
+.privacy-delete > button,
+.privacy-delete-confirm button,
+.privacy-profile form > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 13px;
+  font-size: 12px;
+}
+.privacy-delete-button {
+  border: 1px solid var(--red);
+  border-radius: 6px;
+}
+.privacy-delete-confirm .field {
+  margin-top: 24px;
+}
+.privacy-error {
+  color: var(--red) !important;
+}
+.privacy-success {
+  color: var(--accent) !important;
+}
+.privacy-empty {
+  margin-top: 20px;
+}
+@media (max-width: 600px) {
+  .privacy-notice {
+    left: 12px;
+    bottom: 12px;
+    width: calc(100% - 24px);
+    padding: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .privacy-notice > div:nth-child(2) {
+    flex-basis: calc(100% - 34px);
+  }
+  .privacy-notice-actions {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  .privacy-profile-fields {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

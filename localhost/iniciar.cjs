@@ -4,6 +4,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+const securityHeaders = require("./security-headers.json");
 const root = path.resolve(__dirname, "app");
 const port = 5173;
 const address = `http://localhost:${port}`;
@@ -27,6 +28,8 @@ if (!fs.existsSync(path.join(root, "index.html"))) {
   process.exit(1);
 }
 const server = http.createServer((req, res) => {
+  for (const [key, value] of Object.entries(securityHeaders))
+    res.setHeader(key, value);
   if (!["GET", "HEAD"].includes(req.method)) {
     res.writeHead(405, { Allow: "GET, HEAD" }).end();
     return;
