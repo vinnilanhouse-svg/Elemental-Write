@@ -26,6 +26,7 @@ import {
 } from "../model";
 import { layout, indents, wrap, characterWidth } from "./layout";
 export type EditorHandle = {
+  focus: () => void;
   command: (name: string) => void;
   kind: (kind: Kind) => void;
   shot: (id: ShotId) => void;
@@ -341,6 +342,9 @@ export const ScreenplayEditor = forwardRef<EditorHandle, Props>(
     useImperativeHandle(
       ref,
       () => ({
+        focus() {
+          viewRef.current?.focus();
+        },
         command(name) {
           const v = viewRef.current;
           if (!v) return;

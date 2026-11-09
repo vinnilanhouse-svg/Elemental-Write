@@ -1,4 +1,6 @@
 import { kinds, type Project, type Manuscript, type ScriptDoc } from "../model";
+import { validateMirror } from "../mirror/model";
+import { validateCover } from "../cover/model";
 export type Backup = {
   format: "elemental-write";
   version: 1;
@@ -60,7 +62,8 @@ export function parseBackup(raw: string): Backup {
     typeof p.title !== "string" ||
     !p.title.trim() ||
     typeof p.description !== "string" ||
-    !Array.isArray(b.documents)
+    !Array.isArray(b.documents) ||
+    (p.cover !== undefined && !validateCover(p.cover))
   )
     throw Error("O backup não contém um projeto válido.");
   if (
@@ -75,7 +78,8 @@ export function parseBackup(raw: string): Backup {
         typeof d.titlePage === "boolean" &&
         Number.isFinite(d.createdAt) &&
         Number.isFinite(d.updatedAt) &&
-        validateDoc(d.doc),
+        validateDoc(d.doc) &&
+        (d.mirror === undefined || validateMirror(d.mirror)),
     )
   )
     throw Error("O backup contém documentos inválidos. Nada foi restaurado.");

@@ -3,8 +3,34 @@ import { describe, it, expect } from "vitest";
 import { LocalRepository, ConflictError } from "../src/data/repository";
 import { makeManuscript, block } from "../src/model";
 import { backup, parseBackup } from "../src/io/backup";
+import { defaultCover } from "../src/cover/model";
 const db = () => new LocalRepository("test-" + crypto.randomUUID());
 describe("Persistência IndexedDB e backup", () => {
+  it("Capa pertence ao projeto, persiste no backup e rejeita edições concorrentes", async () => {
+    const r = db();
+    const p = await r.createProject("ana", "Institucionais");
+    const cover = defaultCover();
+    cover.blocks[1].text = "contato@example.com";
+    const saved = await r.saveProjectCover(p.id, cover);
+    expect((await r.projects("ana"))[0].cover).toEqual(cover);
+    await expect(r.saveProjectCover(p.id, defaultCover())).rejects.toThrow(
+      "outra aba",
+    );
+    const parsed = parseBackup(
+      JSON.stringify(backup(saved, [makeManuscript(p.id, "Tutorial")])),
+    );
+    const restored = await r.restore("bruno", parsed.project, parsed.documents);
+    expect(restored.cover).toEqual(cover);
+    expect(() =>
+      parseBackup(
+        JSON.stringify({
+          ...parsed,
+          project: { ...parsed.project, cover: { version: 1, blocks: [null] } },
+        }),
+      ),
+    ).toThrow("projeto válido");
+    await r.delete();
+  });
   it("Isola perfis e não recria a demonstração excluída", async () => {
     const r = db();
     const a = await r.addProfile("Ana", "ana@test.com"),

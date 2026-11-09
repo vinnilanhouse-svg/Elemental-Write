@@ -244,7 +244,7 @@ await step(
       }).promise;
       let yellow = 0;
       try {
-        const pdfPage = await document.getPage(1);
+        const pdfPage = await document.getPage(2);
         const viewport = pdfPage.getViewport({ scale: 1 });
         const canvas = window.document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);

@@ -12,7 +12,8 @@
     "format": "prettier --write src tests *.json *.ts *.html README.md",
     "package:local": "npm run build && node scripts/package-local.mjs",
     "test:autosave": "node tests/autosave.mjs",
-    "test:screenplay": "node tests/screenplay.mjs"
+    "test:screenplay": "node tests/screenplay.mjs",
+    "test:production": "node tests/production.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.11",

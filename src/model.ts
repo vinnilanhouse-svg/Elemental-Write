@@ -1,3 +1,5 @@
+import type { MirrorData } from "./mirror/model";
+import type { CoverTemplate } from "./cover/model";
 export const kinds = [
   "scene",
   "action",
@@ -40,6 +42,7 @@ export type Project = {
   createdAt: number;
   updatedAt: number;
   demo?: boolean;
+  cover?: CoverTemplate;
 };
 export type Manuscript = {
   id: string;
@@ -54,6 +57,7 @@ export type Manuscript = {
   createdAt: number;
   updatedAt: number;
   revision: number;
+  mirror?: MirrorData;
 };
 export const id = () => crypto.randomUUID();
 export const block = (kind: Kind = "action", text = ""): Block => ({

@@ -8,9 +8,11 @@ import {
   type Kind,
   type Span,
   type Mark,
+  type Project,
 } from "../model";
 import { geometry, indents, layout } from "../editor/layout";
 import { technicalKind, insertPrefix } from "../shots";
+import { defaultCover, layoutCover } from "../cover/model";
 export const styleNames: Record<Kind, string> = {
   scene: "Scene Heading",
   action: "Action",
@@ -466,7 +468,7 @@ export async function parseDOCX(file: File) {
   };
 }
 const fontCache = new Map<string, string>();
-async function font(name: string) {
+export async function pdfFont(name: string) {
   if (fontCache.has(name)) return fontCache.get(name)!;
   const r = await fetch("/fonts/" + name + ".ttf");
   if (!r.ok) throw Error("Não foi possível carregar a fonte do PDF.");
@@ -478,7 +480,10 @@ async function font(name: string) {
   fontCache.set(name, encoded);
   return encoded;
 }
-export async function pdfExport(d: Manuscript) {
+export async function pdfExport(
+  d: Manuscript,
+  project?: Pick<Project, "title" | "cover">,
+) {
   const { jsPDF } = await import("jspdf");
   const plan = layout(d.doc.content, d.paper);
   const g = plan.geometry;
@@ -493,24 +498,43 @@ export async function pdfExport(d: Manuscript) {
     ["DejaVuSansMono-Oblique", "italic"],
     ["DejaVuSansMono-BoldOblique", "bolditalic"],
   ]) {
-    pdf.addFileToVFS(file + ".ttf", await font(file));
+    pdf.addFileToVFS(file + ".ttf", await pdfFont(file));
     pdf.addFont(file + ".ttf", "Screenplay", style);
   }
   pdf.setFont("Screenplay");
   pdf.setFontSize(12);
-  if (d.titlePage) {
-    pdf.text(d.title, g.width / 2, g.height * 0.4, {
-      align: "center",
-      maxWidth: g.width - 144,
-    });
-    pdf.text(
-      d.author || "Autor não informado",
-      g.width / 2,
-      g.height * 0.4 + 65,
-      { align: "center" },
+  const cover = layoutCover(
+    project?.cover || defaultCover(),
+    {
+      projeto: project?.title || "",
+      roteiro: d.title,
+      autor: d.author,
+    },
+    g.width,
+    g.height,
+  );
+  if (cover.some((block) => block.overflow))
+    throw Error(
+      "A capa ultrapassa a página. Ajuste os blocos em Editar capa no menu do projeto antes de exportar.",
     );
-    pdf.addPage();
+  for (const block of cover) {
+    pdf.setFont(
+      "Screenplay",
+      block.bold && block.italic
+        ? "bolditalic"
+        : block.bold
+          ? "bold"
+          : block.italic
+            ? "italic"
+            : "normal",
+    );
+    pdf.setFontSize(block.fontSize);
+    for (const line of block.lines)
+      if (line.text)
+        pdf.text(line.text, line.x, line.y, { align: block.align });
   }
+  pdf.addPage();
+  pdf.setFontSize(12);
   for (let page = 1; page <= plan.pages; page++) {
     if (page > 1) pdf.addPage();
     pdf.setFont("Screenplay", "normal");
@@ -558,6 +582,7 @@ export async function pdfExport(d: Manuscript) {
     title: d.title,
     author: d.author,
     creator: "Elemental Write",
+    keywords: "elemental-write-cover-v1",
   });
   return pdf.output("blob");
 }
@@ -573,7 +598,15 @@ export async function parsePDF(file: File) {
   }).promise;
   const content: Block[] = [];
   try {
-    for (let n = 1; n <= pdf.numPages; n++) {
+    const metadata = await pdf.getMetadata();
+    const info = metadata.info as { Keywords?: string; Creator?: string };
+    const first =
+      info?.Creator === "Elemental Write" &&
+      info?.Keywords === "elemental-write-cover-v1" &&
+      pdf.numPages > 1
+        ? 2
+        : 1;
+    for (let n = first; n <= pdf.numPages; n++) {
       const page = await pdf.getPage(n);
       const text = await page.getTextContent();
       const rows = new Map<number, { x: number; text: string }[]>();

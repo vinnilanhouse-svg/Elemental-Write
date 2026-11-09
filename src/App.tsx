@@ -44,6 +44,7 @@ import {
   X,
   Minus,
   Camera,
+  Table2,
 } from "lucide-react";
 import { Logo, Modal, Drawer, Field, Help } from "./ui";
 import { repository } from "./data/repository";
@@ -64,6 +65,11 @@ import {
 import { ScreenplayEditor, type EditorHandle } from "./editor/Editor";
 import { geometry } from "./editor/layout";
 import { ShotLibrary } from "./ShotLibrary";
+import { MirrorEditor } from "./mirror/MirrorEditor";
+import { createMirror } from "./mirror/model";
+import { mirrorPDF, mirrorCSV } from "./mirror/export";
+import { CoverEditor } from "./cover/CoverEditor";
+import type { CoverTemplate } from "./cover/model";
 import { backup, parseBackup, type Backup } from "./io/backup";
 import {
   download,
@@ -103,7 +109,8 @@ export default function App() {
     [projects, setProjects] = useState<Project[]>([]),
     [project, setProject] = useState<Project | null>(null),
     [docs, setDocs] = useState<Manuscript[]>([]),
-    [active, setActive] = useState<Manuscript | null>(null);
+    [active, setActive] = useState<Manuscript | null>(null),
+    [mirrorFor, setMirrorFor] = useState<string | null>(null);
   const [form, setForm] = useState<FormSpec | null>(null),
     [confirm, setConfirm] = useState<{
       title: string;
@@ -118,6 +125,10 @@ export default function App() {
     [restore, setRestore] = useState<Backup | null>(null),
     [navigationOpen, setNavigationOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [coverEdit, setCoverEdit] = useState<{
+    project: Project;
+    documents: Manuscript[];
+  } | null>(null);
   const beforeNavigate = useRef<() => Promise<boolean>>(async () => true);
   const refresh = async (p: Profile) =>
     setProjects(await repository.projects(p.id));
@@ -193,6 +204,7 @@ export default function App() {
       const all = await repository.documents(p.id);
       setDocs(all);
       setProject(p);
+      setMirrorFor(null);
       setActive(all.find((d) => d.kind === "script") || all[0] || null);
       setNavigationOpen(false);
     });
@@ -203,9 +215,20 @@ export default function App() {
       const fresh = all.find((n) => n.id === d.id);
       if (fresh) {
         setDocs(all);
+        setMirrorFor(null);
         setActive(fresh);
         setNavigationOpen(false);
       } else setToast("O documento foi removido em outra aba.");
+    });
+  const openMirror = (d: Manuscript) =>
+    navigate(async () => {
+      const all = await repository.documents(d.projectId);
+      const fresh = all.find((v) => v.id === d.id);
+      if (!fresh) throw Error("Documento removido.");
+      setDocs(all);
+      setActive(fresh);
+      setMirrorFor(fresh.id);
+      setNavigationOpen(false);
     });
   const home = () =>
     safe(() =>
@@ -260,6 +283,35 @@ export default function App() {
         await refresh(profile!);
       },
     });
+  const editCover = (p: Project) =>
+    safe(async () => {
+      if (!(await beforeNavigate.current())) return;
+      const fresh = (await repository.projects(p.profileId)).find(
+        (v) => v.id === p.id,
+      );
+      if (!fresh) throw Error("O projeto foi removido.");
+      setCoverEdit({
+        project: fresh,
+        documents: (await repository.documents(p.id)).filter(
+          (d) => d.kind === "script",
+        ),
+      });
+      setNavigationOpen(false);
+    });
+  const saveCover = async (cover: CoverTemplate) => {
+    if (!coverEdit) return;
+    const saved = await repository.saveProjectCover(
+      coverEdit.project.id,
+      cover,
+      coverEdit.project.cover,
+    );
+    if (project?.id === saved.id) setProject(saved);
+    await refresh(profile!);
+    setCoverEdit(null);
+    setToast(
+      "Capa salva. Ela será incluída nos PDFs dos roteiros deste projeto.",
+    );
+  };
   const newDoc = (kind: "script" | "note") =>
     setForm({
       title: kind === "script" ? "Novo roteiro" : "Nova nota",
@@ -274,6 +326,7 @@ export default function App() {
         await repository.createDocument(d);
         setDocs(await repository.documents(project!.id));
         setActive(d);
+        setMirrorFor(null);
         setNavigationOpen(false);
       },
     });
@@ -318,6 +371,7 @@ export default function App() {
       await repository.createDocument(copy);
       setDocs(await repository.documents(d.projectId));
       setActive(copy);
+      setMirrorFor(null);
     });
   const deleteDoc = (d: Manuscript) =>
     setConfirm({
@@ -451,6 +505,17 @@ export default function App() {
                     <MoreHorizontal size={18} />
                   </summary>
                   <div className="menu-pop">
+                    <button
+                      onClick={(e) => {
+                        e.currentTarget
+                          .closest("details")
+                          ?.removeAttribute("open");
+                        void editCover(project);
+                      }}
+                    >
+                      <FileText size={15} />
+                      Editar capa
+                    </button>
                     <button onClick={() => projectOptions(project)}>
                       <Pencil size={15} />
                       Editar projeto
@@ -506,6 +571,13 @@ export default function App() {
                           <MoreHorizontal size={15} />
                         </summary>
                         <div className="menu-pop">
+                          {kind === "script" && (
+                            <button
+                              onClick={() => void safe(() => openMirror(d))}
+                            >
+                              <Table2 size={15} /> Espelho
+                            </button>
+                          )}
                           <button onClick={() => renameDoc(d)}>
                             <Pencil size={15} />
                             Renomear
@@ -735,6 +807,17 @@ export default function App() {
                             <MoreHorizontal size={19} />
                           </summary>
                           <div className="menu-pop">
+                            <button
+                              onClick={(e) => {
+                                e.currentTarget
+                                  .closest("details")
+                                  ?.removeAttribute("open");
+                                void editCover(p);
+                              }}
+                            >
+                              <FileText size={15} />
+                              Editar capa
+                            </button>
                             <button onClick={() => projectOptions(p)}>
                               <Pencil size={15} />
                               Editar projeto
@@ -793,6 +876,9 @@ export default function App() {
                 onNavigate={() => setNavigationOpen(true)}
                 theme={profile.theme}
                 onTheme={theme}
+                mirrorOpen={mirrorFor === active.id}
+                onMirrorChange={(open) => setMirrorFor(open ? active.id : null)}
+                fallbackWriter={profile.name}
               />
             ) : (
               <div className="empty-workspace">
@@ -838,6 +924,14 @@ export default function App() {
           if (f) void importFile(f);
         }}
       />
+      {coverEdit && (
+        <CoverEditor
+          project={coverEdit.project}
+          documents={coverEdit.documents}
+          save={saveCover}
+          close={() => setCoverEdit(null)}
+        />
+      )}
       {form && (
         <NameForm spec={form} close={() => setForm(null)} onError={setToast} />
       )}{" "}
@@ -1171,6 +1265,9 @@ function Workspace({
   onNavigate,
   theme,
   onTheme,
+  mirrorOpen,
+  onMirrorChange,
+  fallbackWriter,
 }: {
   initial: Manuscript;
   project: Project;
@@ -1183,6 +1280,9 @@ function Workspace({
   onNavigate: () => void;
   theme: Profile["theme"];
   onTheme: () => void;
+  mirrorOpen: boolean;
+  onMirrorChange: (open: boolean) => void;
+  fallbackWriter: string;
 }) {
   const { value, change, flush, status, error, latest } = useDocument(
     initial,
@@ -1226,7 +1326,20 @@ function Workspace({
       await flush();
       const d = latest.current;
       const name = filename(d.title);
-      if (format === "pdf") download(await pdfExport(d), name + ".pdf");
+      if (format === "mirror-pdf")
+        download(
+          await mirrorPDF(d.title, d.mirror || createMirror(d, fallbackWriter)),
+          name + "-espelho.pdf",
+        );
+      if (format === "mirror-csv")
+        download(
+          new Blob([mirrorCSV(d.mirror || createMirror(d, fallbackWriter))], {
+            type: "text/csv;charset=utf-8",
+          }),
+          name + "-espelho.csv",
+        );
+      if (format === "pdf")
+        download(await pdfExport(d, project), name + ".pdf");
       if (format === "docx") download(await docxExport(d), name + ".docx");
       if (format === "fountain")
         download(
@@ -1266,7 +1379,11 @@ function Workspace({
   const g = geometry(value.paper);
   return (
     <div
-      className={"workspace " + (focus ? "focus-mode" : "")}
+      className={
+        "workspace " +
+        (focus && !mirrorOpen ? "focus-mode " : "") +
+        (mirrorOpen ? "mirror-mode" : "")
+      }
       style={{ "--view-zoom": zoom / 100 } as React.CSSProperties}
     >
       <header className="workspace-header">
@@ -1315,9 +1432,11 @@ function Workspace({
             </summary>
             <div className="menu-pop">
               <small>ESTE DOCUMENTO</small>
-              {(value.kind === "script"
-                ? ["pdf", "docx", "fountain", "fdx", "json"]
-                : ["txt", "json"]
+              {(mirrorOpen
+                ? ["mirror-pdf", "mirror-csv", "json"]
+                : value.kind === "script"
+                  ? ["pdf", "docx", "fountain", "fdx", "json"]
+                  : ["txt", "json"]
               ).map((f) => (
                 <button
                   key={f}
@@ -1328,12 +1447,20 @@ function Workspace({
                   }}
                 >
                   <FileText size={15} />
-                  {f === "json"
-                    ? "Backup do documento (.json)"
-                    : f.toUpperCase()}
+                  {f === "mirror-pdf"
+                    ? "Espelho em PDF"
+                    : f === "mirror-csv"
+                      ? "Espelho em CSV"
+                      : f === "json"
+                        ? "Backup do documento (.json)"
+                        : f.toUpperCase()}
                 </button>
               ))}
-              <small>Grifos são preservados em PDF, DOCX e JSON.</small>
+              <small>
+                {mirrorOpen
+                  ? "O backup JSON inclui o roteiro e os ajustes do espelho."
+                  : "Grifos são preservados em PDF, DOCX e JSON."}
+              </small>
               <hr />
               <button
                 onClick={(e) => {
@@ -1355,6 +1482,17 @@ function Workspace({
               <MoreHorizontal size={21} />
             </summary>
             <div className="menu-pop">
+              {value.kind === "script" && (
+                <button
+                  onClick={(e) => {
+                    e.currentTarget.closest("details")?.removeAttribute("open");
+                    onMirrorChange(!mirrorOpen);
+                  }}
+                >
+                  <Table2 size={15} />
+                  {mirrorOpen ? "Voltar ao roteiro" : "Espelho"}
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.currentTarget.closest("details")?.removeAttribute("open");
@@ -1398,6 +1536,19 @@ function Workspace({
             Exportar texto atual
           </button>
         </div>
+      )}
+      {mirrorOpen && (
+        <MirrorEditor
+          manuscript={value}
+          fallbackWriter={fallbackWriter}
+          onChange={(mirror) => change({ mirror })}
+          onBack={() => {
+            onMirrorChange(false);
+            requestAnimationFrame(() => editor.current?.focus());
+          }}
+          onExport={(format) => void exportFile(format)}
+          exporting={exporting}
+        />
       )}
       <div className="editor-toolbar">
         {value.kind === "script" ? (
@@ -1759,11 +1910,12 @@ function Workspace({
                   checked={value.titlePage}
                   onChange={(e) => change({ titlePage: e.target.checked })}
                 />
-                Incluir folha de rosto no PDF e DOCX
+                Incluir folha de rosto no DOCX
               </label>
               <p className="muted">
-                Fonte monoespaçada de 12 pontos. Margens: 3,81 cm à esquerda;
-                2,54 cm nas demais bordas. O Word pode repaginar o documento.
+                O PDF sempre inclui a capa, editável no menu do projeto. Fonte
+                monoespaçada de 12 pontos. Margens: 3,81 cm à esquerda; 2,54 cm
+                nas demais bordas. O Word pode repaginar o documento.
               </p>
             </>
           )}

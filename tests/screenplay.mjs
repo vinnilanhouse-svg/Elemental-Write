@@ -221,8 +221,9 @@ try {
     "PASS Plano, Voice Over, Insert, teclado, cancelamento e exportações PDF/DOCX/FDX/Fountain/JSON",
   );
 
-  await editor.click();
+  await editor.focus();
   await page.keyboard.press("Control+End");
+  await expect(type).toHaveValue("shot");
   await page.keyboard.press("Enter");
   await expect(type).toHaveValue("action");
   await page

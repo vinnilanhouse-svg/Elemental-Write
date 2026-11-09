@@ -1,4 +1,5 @@
 import Dexie, { type Table } from "dexie";
+import type { CoverTemplate } from "../cover/model";
 import {
   block,
   id,
@@ -30,6 +31,11 @@ export interface Repository {
     description: string,
   ): Promise<void>;
   deleteProject(projectId: string): Promise<void>;
+  saveProjectCover(
+    projectId: string,
+    cover: CoverTemplate,
+    expected?: CoverTemplate,
+  ): Promise<Project>;
   documents(projectId: string): Promise<Manuscript[]>;
   createDocument(doc: Manuscript): Promise<void>;
   saveDocument(doc: Manuscript, expectedRevision: number): Promise<Manuscript>;
@@ -142,6 +148,26 @@ export class LocalRepository extends Dexie implements Repository {
       title,
       description,
       updatedAt: Date.now(),
+    });
+  }
+  async saveProjectCover(
+    projectId: string,
+    cover: CoverTemplate,
+    expected?: CoverTemplate,
+  ) {
+    return this.transaction("rw", this.folders, async () => {
+      const current = await this.folders.get(projectId);
+      if (!current) throw Error("O projeto foi removido.");
+      if (
+        JSON.stringify(current.cover ?? null) !==
+        JSON.stringify(expected ?? null)
+      )
+        throw Error(
+          "A capa foi alterada em outra aba. Feche e abra o editor para carregar a versão mais recente.",
+        );
+      const saved = { ...current, cover, updatedAt: Date.now() };
+      await this.folders.put(saved);
+      return saved;
     });
   }
   async deleteProject(projectId: string) {
