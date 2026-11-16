@@ -1,14 +1,14 @@
 # Privacidade: operação e limites da implementação
 
-Responsável informado pelo proprietário: **Elemental Corp**. Contato público: **coradi.maddaloni@gmail.com**. Revisão técnica: **9 de novembro de 2026**.
+Responsável informado pelo proprietário: **Elemental Corp**. Contato público: **coradi.maddaloni@gmail.com**. Revisão técnica: **16 de novembro de 2026**.
 
 ## O que o aplicativo implementa
 
 - Aviso de armazenamento necessário no primeiro acesso, com links permanentes para Privacidade e Termos. “Entendi” registra versão e data de leitura, sem registrar consentimento para publicidade, marketing ou análise.
-- E-mail opcional e possibilidade de usar apelido. Não há conta externa nem autenticação por e-mail.
+- Modo local com e-mail opcional e apelido; contas remotas autenticadas por e-mail/senha via Supabase, confirmação e recuperação. Projetos completos são enviados ao Supabase quando se usa uma conta. Transferência do modo local é explícita e preserva os originais.
 - Consulta e correção do perfil, ZIP com dados pessoais e backups de todos os projetos do perfil e exclusão transacional do perfil e de seu conteúdo. Outros perfis são preservados. A exclusão é comunicada às outras abas da mesma origem; gravações e restaurações para perfis/projetos removidos são rejeitadas.
 - Exportação não inclui dados de outros perfis. Os JSON de projetos podem ser restaurados pelo importador; perfil.json é uma cópia para consulta.
-- Dados do editor em IndexedDB; identificador do perfil ativo e leitura do aviso em LocalStorage. Fontes e bibliotecas são servidas pela própria origem. A aplicação não integra anúncios, pixels, SDKs de analytics ou serviços de IA para tratar os roteiros.
+- No modo local, dados do editor em IndexedDB; no modo conta, em PostgreSQL/Supabase com RLS. Sessão e rascunhos por conta podem permanecer em LocalStorage, inclusive após sair, para recuperação. Exclusão da conta pelo servidor exige nova autenticação por senha e apaga dados ativos em cascata. Configuração e validação externa pendentes estão em SUPABASE.md. identificador do perfil ativo e leitura do aviso em LocalStorage. Fontes e bibliotecas são servidas pela própria origem. A aplicação não integra anúncios, pixels, SDKs de analytics ou serviços de IA para tratar os roteiros.
 - Páginas públicas em /privacidade.html e /termos.html, disponíveis sem JavaScript e também na distribuição localhost.
 - Cabeçalhos de CSP, redução de referência enviada a terceiros, bloqueio de permissões desnecessárias e proteção de tipo de conteúdo no Vercel e no servidor localhost. O pacote compilado é testado com os cabeçalhos aplicados, incluindo PDF e worker de importação.
 
@@ -36,4 +36,4 @@ Os dados do contato estão em src/privacy/config.ts, privacidade.html e termos.h
 - ANPD: https://www.gov.br/anpd/pt-br
 - Política do provedor: https://vercel.com/legal/privacy-policy
 
-A consulta direta aos portais oficiais foi bloqueada pelo proxy de rede deste ambiente (HTTP 403 em 9 de novembro de 2026). Por isso, esta entrega não afirma ter confirmado a versão mais recente de normas, guias ou contratos externos. As referências devem ser conferidas pelo responsável na revisão jurídica.
+A consulta direta aos portais oficiais foi bloqueada pelo proxy de rede deste ambiente (HTTP 403 em 16 de novembro de 2026). Por isso, esta entrega não afirma ter confirmado a versão mais recente de normas, guias ou contratos externos. As referências devem ser conferidas pelo responsável na revisão jurídica.

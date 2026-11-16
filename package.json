@@ -15,9 +15,13 @@
     "test:screenplay": "node tests/screenplay.mjs",
     "test:production": "node tests/production.mjs",
     "test:icons": "node tests/project-icons.mjs",
-    "test:privacy": "node tests/privacy.mjs"
+    "test:privacy": "node tests/privacy.mjs",
+    "test:cloud:sql": "node tests/cloud-sql.mjs",
+    "test:cloud:browser": "node tests/cloud-browser.mjs",
+    "test:cloud:edge": "node tests/cloud-edge.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "dexie": "^4.0.11",
     "docx": "^9.5.0",
     "jspdf": "^3.0.1",
@@ -34,6 +38,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@playwright/test": "^1.55.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

@@ -26,7 +26,7 @@ export interface Repository {
     email: string,
   ): Promise<Profile>;
   exportProfile(profileId: string): Promise<ProfileSnapshot>;
-  deleteProfile(profileId: string): Promise<void>;
+  deleteProfile(profileId: string, password?: string): Promise<void>;
   theme(profileId: string, theme: Profile["theme"]): Promise<void>;
   projects(profileId: string): Promise<Project[]>;
   createProject(
@@ -323,4 +323,16 @@ export class LocalRepository extends Dexie implements Repository {
     return p;
   }
 }
-export const repository: Repository = new LocalRepository();
+export const localRepository = new LocalRepository();
+export let repository: Repository = localRepository;
+export let cloudMode = false;
+export let cloudOwnerId = "";
+export function selectRepository(
+  next: Repository,
+  remote = false,
+  ownerId = "",
+) {
+  repository = next;
+  cloudMode = remote;
+  cloudOwnerId = ownerId;
+}

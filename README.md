@@ -1,6 +1,6 @@
 # Elemental Write
 
-Um estúdio local de escrita de roteiros, em português do Brasil. React + TypeScript + Vite, com um único motor de edição (ProseMirror), IndexedDB (Dexie) e arquivos reais. Não utiliza contas externas, serviços de nuvem, IA ou chaves de API.
+Um estúdio local de escrita de roteiros, em português do Brasil. React + TypeScript + Vite, com um único motor de edição (ProseMirror), IndexedDB (Dexie) e arquivos reais. Oferece modo local e contas Supabase com e-mail/senha e projetos na nuvem. Não utiliza IA. Veja [configuração Supabase e Vercel](SUPABASE.md).
 
 ## Instalar e iniciar
 
@@ -42,9 +42,13 @@ O servidor escuta somente em `127.0.0.1`. Uma porta ocupada gera aviso e não tr
 
 ## Publicação no Vercel
 
-O arquivo `vercel.json` configura o framework Vite, a instalação com `npm ci`, o build com `npm run build` e a saída `dist`. No projeto Vercel conectado a este repositório, use a branch de produção `main` e a raiz do repositório como Root Directory. Não são necessárias variáveis de ambiente. Use Node.js 22.12+ (o build foi validado com Node.js 24).
+O arquivo `vercel.json` configura o framework Vite, a instalação com `npm ci`, o build com `npm run build` e a saída `dist`. No projeto Vercel conectado a este repositório, use a branch de produção `main` e a raiz do repositório como Root Directory. Para contas na nuvem, configure as variáveis públicas de `.env.example` e siga [SUPABASE.md](SUPABASE.md). Sem elas, funciona em modo local. Use Node.js 22.12+ (o build foi validado com Node.js 24).
 
-Um push para `main` aciona o deploy quando a integração Git do projeto está habilitada. A hospedagem serve a aplicação, mas o armazenamento continua no navegador: não há sincronização de projetos entre dispositivos. Para transferir textos do localhost ao domínio publicado, exporte e restaure um backup JSON.
+Um push para `main` aciona o deploy quando a integração Git do projeto está habilitada. A hospedagem serve a aplicação; contas configuradas usam Supabase para salvar projetos entre dispositivos. O modo local continua independente. Para transferir textos do localhost ao domínio publicado, exporte e restaure um backup JSON.
+
+## Contas e nuvem
+
+Cadastro, confirmação por e-mail, login, recuperação e saída estão na tela de acesso. A conta salva no Supabase; o modo local mantém IndexedDB. Use a opção explícita de transferência para copiar projetos locais, preservando os originais. Consulta, correção, exportação e exclusão ficam em Privacidade e seus dados. Leia [SUPABASE.md](SUPABASE.md) antes de habilitar contas na produção. As descrições de perfis locais abaixo aplicam-se ao modo local.
 
 ## Privacidade e dados pessoais
 
@@ -156,7 +160,7 @@ Os testes geram e leem PDFs/DOCX com suas bibliotecas e fazem downloads e import
 - `src/App.tsx` e `src/ui.tsx`: telas, diálogos e controles em português.
 - `tests/`: regras, armazenamento, arquivos e fluxo real no Chromium.
 
-A substituição futura por armazenamento remoto deve implementar `Repository`, incluindo o contrato de revisões, e trocar o fluxo de perfis. Não há conexão Supabase implementada.
+A substituição futura por armazenamento remoto deve implementar `Repository`, incluindo o contrato de revisões, e trocar o fluxo de perfis. A implementação Supabase está em `src/cloud/`, com migração e função em `supabase/`.
 
 ## Licenças e identidade
 

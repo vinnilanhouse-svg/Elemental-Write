@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, Mail, ShieldCheck, Trash2 } from "lucide-react";
 import { Modal, Field } from "../ui";
-import { repository } from "../data/repository";
+import { repository, cloudMode } from "../data/repository";
 import type { Profile } from "../model";
 import type { ProfileSnapshot } from "./archive";
 import { PrivacyLinks } from "./PrivacyNotice";
@@ -19,11 +19,12 @@ export function PrivacyCenter({
   close: () => void;
   update: (name: string, email: string) => Promise<void>;
   exportData: () => Promise<void>;
-  remove: () => Promise<void>;
+  remove: (password?: string) => Promise<void>;
   reviewNotice: () => void;
 }) {
   const [name, setName] = useState(profile?.name || ""),
     [email, setEmail] = useState(profile?.email || "");
+  const [password, setPassword] = useState("");
   const [snapshot, setSnapshot] = useState<ProfileSnapshot | null>(null);
   const [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -88,12 +89,12 @@ export function PrivacyCenter({
       <PrivacyLinks />
       {confirming && profile ? (
         <section className="privacy-delete-confirm">
-          <h3>Excluir perfil e todos os seus dados locais?</h3>
+          <h3>Excluir perfil ou conta e todos os seus dados?</h3>
           <p>
             O perfil <strong>{profile.name}</strong>, seus projetos, roteiros,
-            notas, capas e espelhos serão removidos deste navegador. Alterações
-            ainda não salvas também serão descartadas. Outros perfis serão
-            mantidos.
+            notas, capas e espelhos serão removidos do armazenamento ativo
+            (nuvem para contas; navegador para perfis locais). Alterações ainda
+            não salvas também serão descartadas. Outros perfis serão mantidos.
           </p>
           <p>
             Arquivos já exportados e cópias em outros dispositivos não são
@@ -116,20 +117,33 @@ export function PrivacyCenter({
               onChange={(e) => setConfirmation(e.target.value)}
             />
           </Field>
+          {cloudMode && (
+            <Field label="Confirme sua senha atual">
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+          )}
           <div className="modal-actions">
             <button
               disabled={!!busy}
               onClick={() => {
                 setConfirming(false);
                 setConfirmation("");
+                setPassword("");
               }}
             >
               Voltar
             </button>
             <button
               className="danger privacy-delete-button"
-              disabled={!!busy || confirmation !== "EXCLUIR"}
-              onClick={() => run("delete", remove)}
+              disabled={
+                !!busy || confirmation !== "EXCLUIR" || (cloudMode && !password)
+              }
+              onClick={() => run("delete", () => remove(password))}
             >
               <Trash2 size={15} />
               {busy === "delete" ? "Excluindo…" : "Excluir definitivamente"}
@@ -147,9 +161,11 @@ export function PrivacyCenter({
               opcionais para aceitar ou rejeitar nesta versão.
             </p>
             <p>
-              Os roteiros não são enviados automaticamente à Elemental Corp. Ao
-              acessar o site publicado, a hospedagem pode tratar dados técnicos
-              de acesso, como IP e horário, para entregar e proteger o serviço.
+              Ao usar uma conta, seus dados são enviados ao Supabase por
+              solicitação da Elemental Corp para autenticação e armazenamento.
+              No modo local, ficam no navegador. Ao acessar o site publicado, a
+              hospedagem pode tratar dados técnicos de acesso, como IP e
+              horário, para entregar e proteger o serviço.
             </p>
             <button className="text-button" onClick={reviewNotice}>
               Rever aviso de armazenamento
@@ -160,8 +176,9 @@ export function PrivacyCenter({
               <section className="privacy-profile">
                 <h3>Consultar e corrigir o perfil</h3>
                 <p>
-                  Este é um perfil local, sem senha ou autenticação online. Você
-                  pode usar um apelido e deixar o e-mail em branco.
+                  {cloudMode
+                    ? "Conta autenticada por e-mail e senha. Mudanças de e-mail exigem confirmação por e-mail; o endereço atual permanece até confirmar."
+                    : "Perfil local sem senha. O e-mail é opcional."}
                 </p>
                 <form
                   onSubmit={(e) => {
@@ -182,7 +199,13 @@ export function PrivacyCenter({
                         onChange={(e) => setName(e.target.value)}
                       />
                     </Field>
-                    <Field label="E-mail do perfil (opcional)">
+                    <Field
+                      label={
+                        cloudMode
+                          ? "E-mail da conta"
+                          : "E-mail do perfil (opcional)"
+                      }
+                    >
                       <input
                         type="email"
                         maxLength={254}
@@ -238,11 +261,11 @@ export function PrivacyCenter({
                 </button>
               </section>
               <section className="privacy-delete">
-                <h3>Excluir dados locais</h3>
+                <h3>Excluir perfil ou conta</h3>
                 <p>
-                  A exclusão remove este perfil e todos os seus projetos deste
-                  navegador. Dados salvos em arquivos ou em outros dispositivos
-                  precisam ser apagados nesses locais.
+                  {cloudMode
+                    ? "A exclusão da conta é executada pelo servidor após confirmar sua senha e remove os projetos na nuvem. Cópias locais e arquivos exportados permanecem sob seu controle."
+                    : "A exclusão remove este perfil e seus projetos deste navegador. Arquivos exportados permanecem sob seu controle."}
                 </p>
                 <button
                   className="danger"

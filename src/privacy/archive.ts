@@ -29,7 +29,7 @@ export async function personalDataArchive(snapshot: ProfileSnapshot) {
   );
   zip.file(
     "LEIA-ME.txt",
-    "ELEMENTAL WRITE — EXPORTAÇÃO DOS SEUS DADOS\n\nperfil.json contém os dados do perfil local.\nA pasta projetos contém um backup JSON de cada projeto, incluindo roteiros, notas, capas, ícones e espelhos.\nPara restaurar os projetos, importe os arquivos JSON dessa pasta no Elemental Write. O arquivo perfil.json é uma cópia para consulta e não é importado pelo aplicativo.\nGuarde este ZIP em local seguro: ele pode conter dados pessoais e conteúdo de terceiros.\n",
+    "ELEMENTAL WRITE — EXPORTAÇÃO DOS SEUS DADOS\n\nperfil.json contém os dados do perfil local ou da conta.\nA pasta projetos contém um backup JSON de cada projeto, incluindo roteiros, notas, capas, ícones e espelhos.\nPara restaurar os projetos, importe os arquivos JSON dessa pasta no Elemental Write. O arquivo perfil.json é uma cópia para consulta e não é importado pelo aplicativo.\nGuarde este ZIP em local seguro: ele pode conter dados pessoais e conteúdo de terceiros.\n",
   );
   return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 }

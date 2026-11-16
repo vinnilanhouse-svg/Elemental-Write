@@ -49,7 +49,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Logo, Modal, Drawer, Field, Help } from "./ui";
-import { repository } from "./data/repository";
+import { repository, cloudMode } from "./data/repository";
+import { supabase } from "./cloud/client";
 import { useDocument } from "./data/useDocument";
 import {
   makeManuscript,
@@ -197,6 +198,17 @@ export default function App() {
       if (privacyChannel.current === channel) privacyChannel.current = null;
     };
   }, [profile?.id]);
+  useEffect(() => {
+    const handler = () => {
+      if (profile)
+        void repository
+          .projects(profile.id)
+          .then(setProjects)
+          .catch((e) => setToast(message(e)));
+    };
+    window.addEventListener("ew-cloud-imported", handler);
+    return () => window.removeEventListener("ew-cloud-imported", handler);
+  }, [profile?.id]);
   const refresh = async (p: Profile) =>
     setProjects(await repository.projects(p.id));
   useEffect(() => {
@@ -210,7 +222,7 @@ export default function App() {
           await refresh(p);
         }
       } catch (e) {
-        setToast("Erro ao abrir o armazenamento local: " + message(e));
+        setToast("Erro ao abrir o armazenamento: " + message(e));
       } finally {
         setLoading(false);
       }
@@ -297,9 +309,9 @@ export default function App() {
       `Elemental-Write-${filename(profile.name)}-dados.zip`,
     );
   };
-  const deletePersonalData = async () => {
+  const deletePersonalData = async (password?: string) => {
     if (!profile) return;
-    await repository.deleteProfile(profile.id);
+    await repository.deleteProfile(profile.id, password);
     privacyChannel.current?.postMessage({
       type: "profile-deleted",
       profileId: profile.id,
@@ -310,6 +322,16 @@ export default function App() {
     clearProfile();
     setToast("Perfil e dados locais excluídos.");
   };
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const proceed = (event as CustomEvent<() => void>).detail;
+      void beforeNavigate.current().then((ok) => {
+        if (ok) proceed();
+      });
+    };
+    window.addEventListener("ew-account-navigate", handler);
+    return () => window.removeEventListener("ew-account-navigate", handler);
+  }, []);
   const navigate = async (action: () => Promise<void>) => {
     if (await beforeNavigate.current()) await action();
   };
@@ -386,7 +408,7 @@ export default function App() {
   const deleteProject = (p: Project) =>
     setConfirm({
       title: "Excluir projeto?",
-      body: `“${p.title}” e todos os seus roteiros e notas serão excluídos deste navegador. Exporte um backup antes de continuar.`,
+      body: `“${p.title}” e todos os seus roteiros e notas serão excluídos do armazenamento ativo. Exporte um backup antes de continuar.`,
       run: async () => {
         if (!(await beforeNavigate.current()))
           throw Error("Salve ou exporte as alterações antes de excluir.");
@@ -529,6 +551,11 @@ export default function App() {
   const logout = () =>
     safe(() =>
       navigate(async () => {
+        if (cloudMode && supabase) {
+          const result = await supabase.auth.signOut();
+          if (result.error) throw result.error;
+          return;
+        }
         setProfile(null);
         setNavigationOpen(false);
         setProject(null);
@@ -610,7 +637,7 @@ export default function App() {
       <div className="sidebar-top">
         <Logo />
         <span className="local-pill">
-          <span /> Modo local
+          <span /> {cloudMode ? "Modo nuvem" : "Modo local"}
         </span>
       </div>
       <div className="sidebar-body">
@@ -773,12 +800,14 @@ export default function App() {
           </span>
           <span>
             <strong>{profile?.name}</strong>
-            <small>Salvo neste navegador</small>
+            <small>
+              {cloudMode ? "Salvo na nuvem" : "Salvo neste navegador"}
+            </small>
           </span>
           <button
             className="icon-button"
-            aria-label="Sair do perfil"
-            title="Trocar perfil"
+            aria-label={cloudMode ? "Sair da conta" : "Sair do perfil"}
+            title={cloudMode ? "Sair da conta" : "Trocar perfil"}
             onClick={logout}
           >
             <LogOut size={17} />
@@ -847,7 +876,7 @@ export default function App() {
                     <ShieldCheck size={18} />
                   </button>
                   <span className="local-pill">
-                    <span /> Modo local
+                    <span /> {cloudMode ? "Modo nuvem" : "Modo local"}
                   </span>
                   <button
                     className="icon-button"
@@ -1018,8 +1047,10 @@ export default function App() {
                   )}
                 <div className="dashboard-footer">
                   <span>
-                    <HardDrive size={16} /> Suas histórias ficam neste
-                    navegador. Faça backups para mantê-las seguras.
+                    <HardDrive size={16} />{" "}
+                    {cloudMode
+                      ? "Suas histórias são salvas na nuvem. Mantenha também backups exportados."
+                      : "Suas histórias ficam neste navegador. Faça backups para mantê-las seguras."}
                   </span>
                   <button onClick={() => fileRef.current?.click()}>
                     <Upload size={15} />
@@ -1269,7 +1300,7 @@ function Login({
       </div>
       <main className="login-form">
         <span className="local-pill">
-          <span /> Modo local
+          <span /> {cloudMode ? "Modo nuvem" : "Modo local"}
         </span>
         <h2>{creating ? "Seu próximo capítulo." : "Bom ter você de volta."}</h2>
         <p>
@@ -1634,7 +1665,7 @@ function Workspace({
             aria-live="polite"
             title={`${status} · Salvamento automático a cada 5 minutos e após a digitação`}
           >
-            {status === "Salvo neste navegador" ? (
+            {status.startsWith("Salvo") ? (
               <Check size={16} />
             ) : status === "Salvando…" ? (
               <LoaderCircle size={16} className="spin" />

@@ -1,0 +1,6 @@
+project_id = "elemental-write"
+
+# The handler verifies the bearer token via auth.getUser/getClaims itself.
+# This supports projects using the current asymmetric JWT signing keys.
+[functions.delete-account]
+verify_jwt = false

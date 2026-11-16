@@ -1,8 +1,8 @@
 export const privacy = {
   controller: "Elemental Corp",
   email: "coradi.maddaloni@gmail.com",
-  version: "2026-11-09",
-  updated: "9 de novembro de 2026",
+  version: "2026-11-16",
+  updated: "16 de novembro de 2026",
   noticeKey: "ew.privacy.notice",
   channel: "elemental-write-privacy",
 } as const;

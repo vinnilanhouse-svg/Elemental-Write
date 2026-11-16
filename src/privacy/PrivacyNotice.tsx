@@ -26,10 +26,12 @@ export function PrivacyNotice({
     >
       <ShieldCheck size={21} aria-hidden="true" />
       <div>
-        <strong>Seus dados neste navegador</strong>
+        <strong>Seus dados locais e na nuvem</strong>
         <p>
-          Salvamos perfis e roteiros no seu navegador para o editor funcionar. A
-          aplicação não instala cookies de publicidade ou análise.
+          No modo local, salvamos neste navegador. Ao entrar em uma conta,
+          salvamos seus projetos e roteiros no Supabase para acesso em outros
+          dispositivos. A aplicação não instala cookies de publicidade ou
+          análise.
         </p>
         <PrivacyLinks />
       </div>
