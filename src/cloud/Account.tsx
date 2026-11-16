@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import App from "../App";
+import { Logo } from "../ui";
+import { ArrowRight, Cloud, HardDrive } from "lucide-react";
 import { localRepository, selectRepository } from "../data/repository";
 import { CloudRepository } from "./repository";
 import { supabase, checked, redirectURL } from "./client";
@@ -147,124 +149,175 @@ export function Account() {
       </>
     );
   return (
-    <main className="cloud-login">
-      <h1>Elemental Write</h1>
-      <h2>
-        {recovery
-          ? "Definir nova senha"
-          : mode === "signup"
-            ? "Criar conta"
-            : mode === "reset"
-              ? "Recuperar senha"
-              : "Entrar na nuvem"}
-      </h2>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void run(async () => {
-            if (recovery) {
-              checked(await supabase!.auth.updateUser({ password }));
-              setRecovery(false);
-              setMessage("Senha atualizada.");
-              return;
-            }
-            if (mode === "signup") {
-              checked(
-                await supabase!.auth.signUp({
-                  email,
-                  password,
-                  options: { emailRedirectTo: redirectURL(), data: { name } },
-                }),
-              );
-              setMessage("Confira seu e-mail para confirmar o cadastro.");
-            } else if (mode === "reset") {
-              checked(
-                await supabase!.auth.resetPasswordForEmail(email, {
-                  redirectTo: redirectURL(),
-                }),
-              );
-              setMessage(
-                "Se houver uma conta, você receberá um link de recuperação.",
-              );
-            } else {
-              checked(
-                await supabase!.auth.signInWithPassword({ email, password }),
-              );
-              setLocal(false);
-            }
-          });
-        }}
-      >
-        {mode === "signup" && !recovery && (
-          <label>
-            Nome ou apelido
-            <input
-              required
-              maxLength={120}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-        )}
-        {!recovery && (
-          <label>
-            E-mail
-            <input
-              required
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-        )}
-        {(mode !== "reset" || recovery) && (
-          <label>
-            Senha
-            <input
-              required
-              type="password"
-              minLength={8}
-              autoComplete={
-                mode === "signup" || recovery
-                  ? "new-password"
-                  : "current-password"
+    <div className="login account-entry">
+      <aside className="login-story">
+        <Logo />
+        <div className="login-hero">
+          <span className="eyebrow">SEU ESTÚDIO PESSOAL DE ROTEIROS</span>
+          <h1>
+            Toda história
+            <br />
+            começa com
+            <br />
+            <em>uma ideia.</em>
+          </h1>
+          <p>
+            Um espaço para encontrar sua voz.
+            <br />
+            Escreva, organize e leve suas histórias
+            <br />
+            para onde a inspiração chegar.
+          </p>
+        </div>
+        <div className="login-foot">
+          <span>ELEMENTAL WRITE</span>
+          <span>FEITO PARA QUEM CRIA.</span>
+        </div>
+      </aside>
+      <main className="cloud-login">
+        <span className="account-eyebrow">
+          <Cloud size={15} aria-hidden="true" /> SEU ESPAÇO, EM QUALQUER LUGAR
+        </span>
+        <h2>
+          {recovery
+            ? "Definir nova senha"
+            : mode === "signup"
+              ? "Criar conta"
+              : mode === "reset"
+                ? "Recuperar senha"
+                : "Entrar na nuvem"}
+        </h2>
+        <p className="account-intro">
+          {recovery
+            ? "Escolha uma nova senha para voltar às suas histórias."
+            : mode === "signup"
+              ? "Dê às suas ideias um lugar para crescer."
+              : mode === "reset"
+                ? "Enviaremos um link para você recuperar o acesso."
+                : "Bom ter você de volta. Sua próxima página espera por você."}
+        </p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(async () => {
+              if (recovery) {
+                checked(await supabase!.auth.updateUser({ password }));
+                setRecovery(false);
+                setMessage("Senha atualizada.");
+                return;
               }
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
+              if (mode === "signup") {
+                checked(
+                  await supabase!.auth.signUp({
+                    email,
+                    password,
+                    options: { emailRedirectTo: redirectURL(), data: { name } },
+                  }),
+                );
+                setMessage("Confira seu e-mail para confirmar o cadastro.");
+              } else if (mode === "reset") {
+                checked(
+                  await supabase!.auth.resetPasswordForEmail(email, {
+                    redirectTo: redirectURL(),
+                  }),
+                );
+                setMessage(
+                  "Se houver uma conta, você receberá um link de recuperação.",
+                );
+              } else {
+                checked(
+                  await supabase!.auth.signInWithPassword({ email, password }),
+                );
+                setLocal(false);
+              }
+            });
+          }}
+        >
+          {mode === "signup" && !recovery && (
+            <label>
+              Nome ou apelido
+              <input
+                required
+                maxLength={120}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+          )}
+          {!recovery && (
+            <label>
+              E-mail
+              <input
+                required
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+          )}
+          {(mode !== "reset" || recovery) && (
+            <label>
+              Senha
+              <input
+                required
+                type="password"
+                minLength={8}
+                autoComplete={
+                  mode === "signup" || recovery
+                    ? "new-password"
+                    : "current-password"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+          )}
+          <button className="primary" disabled={busy || !supabase}>
+            {busy ? "Aguarde…" : "Continuar"}
+            <ArrowRight size={17} aria-hidden="true" />
+          </button>
+        </form>
+        {!recovery && (
+          <div className="account-options">
+            <button
+              className="account-switch"
+              onClick={() => setMode(mode === "signup" ? "login" : "signup")}
+            >
+              {mode === "signup" ? "Já tenho conta" : "Cadastrar"}
+            </button>
+            <button
+              className="account-forgot"
+              onClick={() => setMode(mode === "reset" ? "login" : "reset")}
+            >
+              {mode === "reset" ? "Voltar ao login" : "Esqueci minha senha"}
+            </button>
+            <div className="account-divider">
+              <span>ou continue no seu dispositivo</span>
+            </div>
+            <button
+              className="account-local"
+              onClick={() => {
+                setLocal(true);
+                setMessage("");
+              }}
+            >
+              <HardDrive size={16} aria-hidden="true" />
+              Continuar com dados locais
+            </button>
+          </div>
         )}
-        <button className="primary" disabled={busy || !supabase}>
-          {busy ? "Aguarde…" : "Continuar"}
-        </button>
-      </form>
-      {!recovery && (
-        <>
-          <button
-            onClick={() => setMode(mode === "signup" ? "login" : "signup")}
-          >
-            {mode === "signup" ? "Já tenho conta" : "Cadastrar"}
-          </button>
-          <button onClick={() => setMode(mode === "reset" ? "login" : "reset")}>
-            {mode === "reset" ? "Voltar ao login" : "Esqueci minha senha"}
-          </button>
-          <button
-            onClick={() => {
-              setLocal(true);
-              setMessage("");
-            }}
-          >
-            Continuar com dados locais
-          </button>
-        </>
-      )}
-      {message && <p role="status">{message}</p>}
-      <p>
-        Na conta, projetos e roteiros são enviados ao Supabase. Dados locais só
-        são transferidos por sua escolha.
-      </p>
-      <PrivacyLinks />
-    </main>
+        {message && (
+          <p className="account-message" role="status">
+            {message}
+          </p>
+        )}
+        <p className="account-privacy">
+          Seus projetos acompanham sua conta na nuvem. Dados locais só são
+          transferidos quando você escolher.
+        </p>
+        <PrivacyLinks />
+      </main>
+    </div>
   );
 }

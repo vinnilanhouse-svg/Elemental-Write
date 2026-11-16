@@ -3343,17 +3343,182 @@ p[data-kind="parenthetical"] .page-break:before {
 .cloud-account-bar button {
   padding: 4px 10px;
 }
+/* Account entry uses the same paper, charcoal and brass palette as the editor. */
 .cloud-login {
-  max-width: 480px;
-  margin: 8vh auto;
-  padding: 24px;
+  align-self: center;
+  justify-self: center;
+  width: 390px;
+  max-width: calc(100% - 64px);
+  padding: 56px 0;
 }
-.cloud-login form,
+.account-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  line-height: 1.6;
+}
+.cloud-login h2 {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: -1.2px;
+  margin: 22px 0 12px;
+}
+.account-intro {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0 0 30px;
+}
+.cloud-login form {
+  display: grid;
+  gap: 20px;
+}
 .cloud-login label {
   display: grid;
-  gap: 10px;
-  margin: 16px 0;
+  gap: 9px;
+  font-size: 12px;
+  font-weight: 500;
 }
-.cloud-login > button {
-  margin: 4px;
+.cloud-login input {
+  width: 100%;
+  min-width: 0;
+  padding: 14px 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+.cloud-login input:focus {
+  border-color: var(--accent);
+}
+.cloud-login .primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 15px 18px;
+  margin-top: 5px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 20px 12px;
+  margin-top: 22px;
+}
+.account-switch,
+.account-forgot {
+  padding: 5px 0;
+  font-size: 12px;
+  text-align: left;
+  color: var(--accent);
+}
+.account-forgot {
+  text-align: right;
+  color: var(--muted);
+}
+.account-switch:hover,
+.account-forgot:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.account-divider {
+  grid-column: 1/-1;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 10px;
+  margin: 7px 0 0;
+}
+.account-divider:before,
+.account-divider:after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.account-local {
+  grid-column: 1/-1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.account-local:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+.account-privacy {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 24px 0 14px;
+}
+.account-message {
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.cloud-login .privacy-links {
+  font-size: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 800px) {
+  .account-entry {
+    grid-template-columns: 1fr;
+  }
+  .account-entry .login-story {
+    min-height: auto;
+    padding: 26px 28px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .account-entry .login-story > .brand {
+    font-size: 23px;
+  }
+  .account-entry .login-hero {
+    display: none;
+  }
+  .account-entry .login-foot {
+    display: none;
+  }
+  .account-entry .cloud-login {
+    width: 420px;
+    padding: 36px 0;
+    max-width: calc(100% - 48px);
+  }
+  .cloud-login h2 {
+    font-size: 34px;
+  }
+}
+@media (max-width: 360px) {
+  .account-options {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .account-forgot {
+    text-align: left;
+  }
+  .account-eyebrow {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
 }
